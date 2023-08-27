@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 leptos = "0.4.10"
 proptest = "1.2.0"
-web-sys = { version = "0.3.64", features = ["Element"] }
+web-sys = { version = "0.3.64", features = ["Element", "DomRect"] }

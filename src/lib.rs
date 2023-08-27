@@ -1,50 +1,95 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, ops::Deref};
 
-#[cfg(test)]
-use proptest::proptest;
+use leptos::{
+    html::{Div, ElementDescriptor},
+    NodeRef,
+};
+use web_sys::HtmlElement;
 
-/// Used to map arbitrary keys to values.
+/// Should be used before actions that change the NodeRefs' positions. Takes HashMap of arbitrary
+/// keys to NodeRefs that should be dislocated, as well as the NodeRef for a container Div which
+/// must be targeted for DOM reflow. A reflow is the recomputation of an element's position and
+/// dimensions, and must be done in order to FLIP. Returns a function that animates the given
+/// elements when called.
 ///
-/// The intent of this trait is to be able to map identifiers to each eventual NodeRef,
-/// as, at first, they must be accessed to obtain their positions, and these positions
-/// have to be updated later. To be able to know which NodeRef must be updated with
-/// a given new style, lookup is done through this mapping.
+/// ```
+/// // Call before changing NodeRefs' positions
+/// let flip = prepare_flip(ids_to_node_refs, container_div_node_ref);
 ///
-/// `mapping.get(t)` is used to retrieve an item from the mapping by the key "t".
+/// // Perform action that will change the NodeRefs' positions in page, such as setting signals
+/// // ...
 ///
-/// `mapping.insert(t, u)` is used to associate a key "t" with a value "u".
-///
-/// `mapping.keys()` returns all keys. This is necessary to make sure every NodeRef
-/// gets its style set.
-pub trait Mapping<T, U> {
-    fn get(&self, t: &T) -> Option<&U>;
+/// // Perform FLIP animation
+/// flip();
+/// ```
+pub fn prepare_flip<T, U, V>(
+    mapping: &HashMap<T, NodeRef<U>>,
+    reflow_target: NodeRef<Div>,
+) -> Result<impl FnOnce() -> Result<(), FlipError<T>> + '_, PrepareFlipError<T>>
+where
+    T: ToOwned<Owned = T> + Hash + Eq,
+    U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
+    V: Deref<Target = HtmlElement>,
+{
+     match get_positions_from_node_refs(&mapping) {
+         Err(ts) => {
+            let ts = ts.into_iter().map(|t| t.to_owned()).collect();
 
-    fn insert(&mut self, t: T, u: U);
-
-    fn keys(&self) -> Vec<T>;
+            Err(PrepareFlipError(ts))
+         },
+         Ok(ids_to_positions) => {
+             Ok(move || flip(mapping, &ids_to_positions))
+         }
+     }
 }
 
-impl<T, U> Mapping<T, U> for HashMap<T, U> where T: Hash + Eq + Clone + ToOwned<Owned = T> {
-    fn get(&self, t: &T) -> Option<&U> {
-        self.get(t)
-    }
+fn get_positions_from_node_refs<T, U, V>(
+    mapping: &HashMap<T, NodeRef<U>>,
+) -> Result<HashMap<T, (f64, f64)>, Vec<&T>>
+where
+    T: ToOwned<Owned = T> + Hash + Eq,
+    U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
+    V: Deref<Target = HtmlElement>,
+{
+    let mut ids_for_which_element_could_not_be_obtained = Vec::new();
 
-    fn insert(&mut self, t: T, u: U) {
-        self.insert(t, u);
-    }
+    let mut ids_to_positions = HashMap::new();
 
-    fn keys(&self) -> Vec<T> {
-        self
-            .keys()
-            .into_iter()
-            .map(|k| k.to_owned())
-            .collect()
+    mapping.iter().for_each(|(k, v)| match v.get() {
+        None => ids_for_which_element_could_not_be_obtained.push(k),
+        Some(element) => {
+            let position = element.get_bounding_client_rect();
+
+            ids_to_positions.insert(k.to_owned(), (position.x(), position.y()));
+        }
+    });
+
+    if ids_for_which_element_could_not_be_obtained.len() > 0 {
+        Err(ids_for_which_element_could_not_be_obtained)
+    } else {
+        Ok(ids_to_positions)
     }
 }
 
+fn flip<T, U, V>(
+    mapping: &HashMap<T, NodeRef<U>>,
+    ids_to_positions: &HashMap<T, (f64, f64)>,
+) -> Result<(), FlipError<T>>
+where
+    T: ToOwned<Owned = T> + Hash + Eq,
+    U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
+    V: Deref<Target = HtmlElement>,
+{
+    Ok(())
+}
 
+/// Might occur when preparing a flip, where elements could not be obtained. The error contains the
+/// list of identifiers for which the elements could not be obtained.
+pub struct PrepareFlipError<T>(Vec<T>);
 
-#[cfg(test)]
-proptest! {
-
+/// Might occur when flipping
+pub enum FlipError<T> {
+    /// Means that, for some identifiers, their positions could not be obtained. Wraps Vec<T> of
+    /// problematic identifiers.
+    ObtainNewPositionsError(Vec<T>)
 }
