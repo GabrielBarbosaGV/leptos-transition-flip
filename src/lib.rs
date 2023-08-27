@@ -31,16 +31,14 @@ where
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
-     match get_positions_from_node_refs(&mapping) {
-         Err(ts) => {
+    match get_positions_from_node_refs(&mapping) {
+        Err(ts) => {
             let ts = ts.into_iter().map(|t| t.to_owned()).collect();
 
             Err(PrepareFlipError(ts))
-         },
-         Ok(ids_to_positions) => {
-             Ok(move || flip(mapping, &ids_to_positions))
-         }
-     }
+        }
+        Ok(ids_to_positions) => Ok(move || flip(mapping, &ids_to_positions, reflow_target)),
+    }
 }
 
 fn get_positions_from_node_refs<T, U, V>(
@@ -58,9 +56,11 @@ where
     mapping.iter().for_each(|(k, v)| match v.get() {
         None => ids_for_which_element_could_not_be_obtained.push(k),
         Some(element) => {
-            let position = element.get_bounding_client_rect();
+            if ids_for_which_element_could_not_be_obtained.len() == 0 {
+                let position = element.get_bounding_client_rect();
 
-            ids_to_positions.insert(k.to_owned(), (position.x(), position.y()));
+                ids_to_positions.insert(k.to_owned(), (position.x(), position.y()));
+            }
         }
     });
 
@@ -74,13 +74,62 @@ where
 fn flip<T, U, V>(
     mapping: &HashMap<T, NodeRef<U>>,
     ids_to_positions: &HashMap<T, (f64, f64)>,
+    reflow_target: NodeRef<Div>,
 ) -> Result<(), FlipError<T>>
 where
     T: ToOwned<Owned = T> + Hash + Eq,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
+    let ids_to_new_positions = get_positions_from_node_refs(mapping).map_err(|ts| {
+        let ts = ts.into_iter().map(|t| t.to_owned()).collect();
+
+        FlipError::ObtainNewPositionsError(ts)
+    })?;
+
+    let ids_to_diffs = get_diffs_from_positions(ids_to_positions, &ids_to_new_positions);
+
+    style_elements_with_diffs(kj, diffs)
+
     Ok(())
+}
+
+fn get_diffs_from_positions<T>(
+    old: &HashMap<T, (f64, f64)>,
+    new: &HashMap<T, (f64, f64)>,
+) -> HashMap<T, (f64, f64)>
+where
+    T: ToOwned<Owned = T> + Hash + Eq,
+{
+    old.iter()
+        .map(|(k, (old_x, old_y))| {
+            let (new_x, new_y) = new.get(k).unwrap();
+
+            (k.to_owned(), (old_x - new_x, old_y - new_y))
+        })
+        .collect()
+}
+
+fn style_elements_with_diffs<T, U, V>(
+    mapping: &HashMap<T, NodeRef<U>>,
+    diffs: &HashMap<T, (f64, f64)>,
+) where
+    T: ToOwned<Owned = T> + Hash + Eq,
+    U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
+    V: Deref<Target = HtmlElement>,
+{
+    let mut ids_for_which_element_could_not_be_obtained = Vec::new();
+
+    mapping.iter().for_each(|(k, v)| match v.get() {
+        None => ids_for_which_element_could_not_be_obtained.push(k),
+        Some(element) => {
+            if ids_for_which_element_could_not_be_obtained.len() == 0 {
+                let (x, y) = diffs.get(k).unwrap();
+
+                element.style("transform", &format!("translate({}px, {}px)", x, y));
+            }
+        }
+    });
 }
 
 /// Might occur when preparing a flip, where elements could not be obtained. The error contains the
@@ -91,5 +140,5 @@ pub struct PrepareFlipError<T>(Vec<T>);
 pub enum FlipError<T> {
     /// Means that, for some identifiers, their positions could not be obtained. Wraps Vec<T> of
     /// problematic identifiers.
-    ObtainNewPositionsError(Vec<T>)
+    ObtainNewPositionsError(Vec<T>),
 }
