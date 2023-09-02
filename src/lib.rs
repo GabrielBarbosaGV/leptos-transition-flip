@@ -26,11 +26,13 @@ use web_sys::HtmlElement;
 /// // ...
 ///
 /// // Perform FLIP animation
-/// flip().map_err(|err| format!(""));
+/// flip().map_err(|err| format!("FLIP failed with error: {err}"))?;
 ///
 /// // Await end and then clear transition style
 /// set_timeout(|| {
-///     clear();
+///     if let Err(err) = clear() {
+///         console_log("Error occurred when trying to clear FLIP transition style: {err}");
+///     }
 /// }, Duration::from_millis(600));
 /// ```
 pub fn prepare_flip<T, U, V>(
@@ -237,8 +239,8 @@ const EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE: &str = "\
     please report this error to https://github.com/GabrielBarbosaGV/leptos-transition-flip\
 ";
 
-/// Might occur when preparing a flip, where elements could not be obtained. The error contains the
-/// list of identifiers for which the elements could not be obtained.
+/// Might occur when preparing a flip, where elements could not be obtained. Wraps Vec\<T\> of
+/// problematic identifiers.
 #[derive(Debug)]
 pub struct PrepareFlipError<T>(Vec<T>);
 
@@ -258,19 +260,19 @@ where
 #[derive(Debug)]
 /// Might occur when flipping
 pub enum FlipError<T> {
-    /// Means that, for some identifiers, their positions could not be obtained. Wraps Vec<T> of
+    /// Means that, for some identifiers, their positions could not be obtained. Wraps Vec\<T\> of
     /// problematic identifiers.
     ObtainNewPositionsError(Vec<T>),
 
     /// Means that an error occured when trying to style the elements with new translate values.
-    /// Wraps Vec<T> of problematic identifiers.
+    /// Wraps Vec\<T\> of problematic identifiers.
     StyleElementsWithOffsetError(Vec<T>),
 
     /// Means that getting the HTML element from the reflow target was no possible.
     GetReflowTargetError,
 
     /// Means an error occurred when styling elements with no transform, which is a necessary step
-    /// for transitioning them to their final positions.
+    /// for transitioning them to their final positions. Wraps Vec\<T\> of problematic identifiers.
     StyleElementsWithNoTransformError(Vec<T>),
 }
 
@@ -300,7 +302,7 @@ where
     }
 }
 
-// Might occur when clearing the transition styles
+/// Might occur when clearing the transition styles. Wraps Vec\<T\> of problematic identifiers.
 #[derive(Debug)]
 pub struct RemoveTransitionError<T>(Vec<T>);
 
