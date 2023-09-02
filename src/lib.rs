@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, ops::Deref, time::Duration};
+use std::{collections::HashMap, fmt::Display, hash::Hash, ops::Deref, time::Duration};
 
 use leptos::{
     html::{Div, ElementDescriptor},
@@ -26,7 +26,7 @@ use web_sys::HtmlElement;
 /// // ...
 ///
 /// // Perform FLIP animation
-/// flip();
+/// flip().map_err(|err| format!(""));
 ///
 /// // Await end and then clear transition style
 /// set_timeout(|| {
@@ -232,10 +232,28 @@ where
     }
 }
 
+const EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE: &str = "\
+    At least one ID should be contained in error's collection for it to have occurred, \
+    please report this error to https://github.com/GabrielBarbosaGV/leptos-transition-flip\
+";
+
 /// Might occur when preparing a flip, where elements could not be obtained. The error contains the
 /// list of identifiers for which the elements could not be obtained.
 #[derive(Debug)]
 pub struct PrepareFlipError<T>(Vec<T>);
+
+impl<T> Display for PrepareFlipError<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let PrepareFlipError(ids) = self;
+
+        let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
+
+        write!(f, "Elements could not be obtained for IDs {ids} when attempting to get their current positions")
+    }
+}
 
 #[derive(Debug)]
 /// Might occur when flipping
@@ -256,6 +274,59 @@ pub enum FlipError<T> {
     StyleElementsWithNoTransformError(Vec<T>),
 }
 
+impl<T> Display for FlipError<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+
+        match self {
+            Self::ObtainNewPositionsError(ids) => {
+                let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
+                write!(f, "Elements could not be obtained for IDs {ids} when attempting to get their new positions")
+            }
+            Self::StyleElementsWithOffsetError(ids) => {
+                let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
+                write!(f, "Elements could not be obtained for IDs {ids} when attempting to style them with their offset positions")
+            }
+            Self::GetReflowTargetError => {
+                write!(f, "Reflow target element could not be obtained")
+            }
+            Self::StyleElementsWithNoTransformError(ids) => {
+                let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
+                write!(f, "Elements could not be obtained for IDs {ids} when attempting to style them with no transform and a transition duration")
+            }
+        }
+    }
+}
+
 // Might occur when clearing the transition styles
 #[derive(Debug)]
 pub struct RemoveTransitionError<T>(Vec<T>);
+
+impl<T> Display for RemoveTransitionError<T> where T: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let RemoveTransitionError(ids) = self;
+        let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
+        write!(f, "Elements could not be obtained for IDs {ids} when attempting to style them with no transition")
+    }
+}
+
+fn format_vec<T>(vs: &Vec<T>) -> Option<String> where T: Display {
+    let last_element = vs.last()?;
+
+    let first_elements = &vs[0..vs.len() - 1];
+
+    match first_elements.len() {
+        0 => Some(format!("{last_element}")),
+        _ => {
+            let first_elements = first_elements
+                .into_iter()
+                .map(|elem| format!("{elem}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            Some(format!("{first_elements} and {last_element}"))
+        }
+    }
+}
