@@ -40,7 +40,7 @@ pub fn prepare_flip<T, U, V>(
 ) -> Result<
     (
         impl FnOnce() -> Result<(), FlipError<T>>,
-        impl FnOnce() -> Result<(), RemoveTransitionError<T>>
+        impl FnOnce() -> Result<(), RemoveTransitionError<T>>,
     ),
     PrepareFlipError<T>,
 >
@@ -107,7 +107,7 @@ where
 
     let ids_to_diffs = get_diffs_from_positions(ids_to_positions, &ids_to_new_positions);
 
-    style_elements_with_diffs(&mapping, &ids_to_diffs, duration)
+    style_elements_with_diffs(&mapping, &ids_to_diffs)
         .map_err(|ts| FlipError::StyleElementsWithOffsetError(ts))?;
 
     match reflow_target.get() {
@@ -117,7 +117,7 @@ where
         }
     };
 
-    style_elements_with_no_transform(&mapping)
+    style_elements_with_no_transform(&mapping, duration)
         .map_err(|ts| FlipError::StyleElementsWithNoTransformError(ts))?;
 
     set_timeout(|| {}, duration);
@@ -144,7 +144,6 @@ where
 fn style_elements_with_diffs<T, U, V>(
     mapping: &HashMap<T, NodeRef<U>>,
     diffs: &HashMap<T, (f64, f64)>,
-    duration: Duration,
 ) -> Result<(), Vec<T>>
 where
     T: ToOwned<Owned = T> + Hash + Eq,
@@ -161,10 +160,7 @@ where
 
                 element
                     .clone()
-                    .style("transform", &format!("translate({}px, {}px)", x, y));
-                element
-                    .clone()
-                    .style("transition", &format!("all {}s", duration.as_secs()));
+                    .style("transform", &format!("translate({x}px, {y}px)"));
             }
         }
     });
@@ -176,7 +172,10 @@ where
     }
 }
 
-fn style_elements_with_no_transform<T, U, V>(mapping: &HashMap<T, NodeRef<U>>) -> Result<(), Vec<T>>
+fn style_elements_with_no_transform<T, U, V>(
+    mapping: &HashMap<T, NodeRef<U>>,
+    duration: Duration,
+) -> Result<(), Vec<T>>
 where
     T: ToOwned<Owned = T> + Hash + Eq,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
@@ -188,6 +187,11 @@ where
         None => ids_for_which_element_could_not_be_obtained.push(k.to_owned()),
         Some(element) => {
             if ids_for_which_element_could_not_be_obtained.len() == 0 {
+                element.clone().style(
+                    "transition",
+                    &format!("transform {}s", duration.as_secs_f64()),
+                );
+
                 element.clone().style("transform", "");
             }
         }
@@ -200,7 +204,9 @@ where
     }
 }
 
-fn remove_transition<T, U, V>(mapping: HashMap<T, NodeRef<U>>) -> Result<(), RemoveTransitionError<T>>
+fn remove_transition<T, U, V>(
+    mapping: HashMap<T, NodeRef<U>>,
+) -> Result<(), RemoveTransitionError<T>>
 where
     T: ToOwned<Owned = T> + Hash + Eq,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
@@ -218,7 +224,9 @@ where
     });
 
     if ids_for_which_element_could_not_be_obtained.len() > 0 {
-        Err(RemoveTransitionError(ids_for_which_element_could_not_be_obtained))
+        Err(RemoveTransitionError(
+            ids_for_which_element_could_not_be_obtained,
+        ))
     } else {
         Ok(())
     }
