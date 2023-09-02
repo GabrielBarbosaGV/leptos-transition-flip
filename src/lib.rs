@@ -1,3 +1,8 @@
+//! # FLIP animation for Leptos
+//! Enables smooth transition between element positions by using FLIP to animate the dislocation
+//! between the initial location and the final. Usage example at [`prepare_flip()`]. Example of
+//! final appearance at the [GitHub repo](https://github.com/GabrielBarbosaGV/leptos-transition-flip).
+
 use std::{collections::HashMap, fmt::Display, hash::Hash, ops::Deref, time::Duration};
 
 use leptos::{
