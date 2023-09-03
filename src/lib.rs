@@ -5,7 +5,10 @@
 
 use std::{collections::HashMap, fmt::Display, hash::Hash, ops::Deref};
 
-use leptos::{html::{Div, ElementDescriptor}, NodeRef};
+use leptos::{
+    html::{Div, ElementDescriptor},
+    NodeRef,
+};
 use web_sys::HtmlElement;
 
 /// Should be used before actions that change the NodeRefs' positions. Takes HashMap of arbitrary
@@ -40,7 +43,7 @@ use web_sys::HtmlElement;
 pub fn prepare_flip<T, U, V>(
     mapping: HashMap<T, NodeRef<U>>,
     reflow_target: NodeRef<Div>,
-    transition: String
+    transition: String,
 ) -> Result<
     (
         impl FnOnce() -> Result<(), FlipError<T>>,
@@ -99,7 +102,7 @@ fn flip<T, U, V>(
     mapping: HashMap<T, NodeRef<U>>,
     ids_to_positions: &HashMap<T, (f64, f64)>,
     reflow_target: NodeRef<Div>,
-    transition: String
+    transition: String,
 ) -> Result<(), FlipError<T>>
 where
     T: Hash + Eq + Clone,
@@ -176,7 +179,7 @@ where
 
 fn style_elements_with_no_transform<T, U, V>(
     mapping: &HashMap<T, NodeRef<U>>,
-    transition: String
+    transition: String,
 ) -> Result<(), Vec<T>>
 where
     T: Hash + Eq + Clone,
@@ -189,10 +192,7 @@ where
         None => ids_for_which_element_could_not_be_obtained.push(k.clone()),
         Some(element) => {
             if ids_for_which_element_could_not_be_obtained.len() == 0 {
-                element.clone().style(
-                    "transition",
-                    &transition
-                );
+                element.clone().style("transition", &transition);
 
                 element.clone().style("transform", "");
             }
@@ -281,7 +281,6 @@ where
     T: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-
         match self {
             Self::ObtainNewPositionsError(ids) => {
                 let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
@@ -306,7 +305,10 @@ where
 #[derive(Debug)]
 pub struct RemoveTransitionError<T>(Vec<T>);
 
-impl<T> Display for RemoveTransitionError<T> where T: Display {
+impl<T> Display for RemoveTransitionError<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let RemoveTransitionError(ids) = self;
         let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
@@ -314,7 +316,10 @@ impl<T> Display for RemoveTransitionError<T> where T: Display {
     }
 }
 
-fn format_vec<T>(vs: &Vec<T>) -> Option<String> where T: Display {
+fn format_vec<T>(vs: &Vec<T>) -> Option<String>
+where
+    T: Display,
+{
     let last_element = vs.last()?;
 
     let first_elements = &vs[0..vs.len() - 1];
