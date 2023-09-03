@@ -2,6 +2,12 @@
 name = "leptos_transition_flip"
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
+description = "Enables transition between element positions with FLIP"
+# TODO Homepage
+repository = "https://github.com/GabrielBarbosaGV/leptos-transition-flip"
+# TODO README
+keywords = ["leptos", "css", "animation", "transition", "FLIP"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

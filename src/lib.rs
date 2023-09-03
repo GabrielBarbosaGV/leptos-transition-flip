@@ -3,17 +3,14 @@
 //! between the initial location and the final. Usage example at [`prepare_flip()`]. Example of
 //! final appearance at the [GitHub repo](https://github.com/GabrielBarbosaGV/leptos-transition-flip).
 
-use std::{collections::HashMap, fmt::Display, hash::Hash, ops::Deref, time::Duration};
+use std::{collections::HashMap, fmt::Display, hash::Hash, ops::Deref};
 
-use leptos::{
-    html::{Div, ElementDescriptor},
-    set_timeout, NodeRef,
-};
+use leptos::{html::{Div, ElementDescriptor}, NodeRef};
 use web_sys::HtmlElement;
 
 /// Should be used before actions that change the NodeRefs' positions. Takes HashMap of arbitrary
 /// keys to NodeRefs that should be dislocated, the NodeRef for a container Div which
-/// must be targeted for DOM reflow, as well as the duration the animation should have. A reflow
+/// must be targeted for DOM reflow, as the transition property that should be set. A reflow
 /// is the recomputation of an element's position and dimensions, and must be done in order to
 /// FLIP. Returns a pair of functions. The first one animates the given elements when called, the
 /// second one clears the transition styles, and should be called once the length of the animation
@@ -24,7 +21,7 @@ use web_sys::HtmlElement;
 /// let (flip, clear) = prepare_flip(
 ///     ids_to_node_refs,
 ///     container_div_node_ref,
-///     Duration::from_millis(600)
+///     "transform 0.6s".to_string()
 /// );
 ///
 /// // Perform action that will change the NodeRefs' positions in page, such as setting signals
@@ -43,7 +40,7 @@ use web_sys::HtmlElement;
 pub fn prepare_flip<T, U, V>(
     mapping: HashMap<T, NodeRef<U>>,
     reflow_target: NodeRef<Div>,
-    duration: Duration,
+    transition: String
 ) -> Result<
     (
         impl FnOnce() -> Result<(), FlipError<T>>,
@@ -52,7 +49,7 @@ pub fn prepare_flip<T, U, V>(
     PrepareFlipError<T>,
 >
 where
-    T: ToOwned<Owned = T> + Hash + Eq + Clone,
+    T: Hash + Eq + Clone,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -62,7 +59,7 @@ where
     match get_positions_from_node_refs(&mapping) {
         Err(ts) => Err(PrepareFlipError(ts)),
         Ok(ids_to_positions) => Ok((
-            move || flip(flip_mapping, &ids_to_positions, reflow_target, duration),
+            move || flip(flip_mapping, &ids_to_positions, reflow_target, transition),
             move || remove_transition(clear_mapping),
         )),
     }
@@ -72,7 +69,7 @@ fn get_positions_from_node_refs<T, U, V>(
     mapping: &HashMap<T, NodeRef<U>>,
 ) -> Result<HashMap<T, (f64, f64)>, Vec<T>>
 where
-    T: ToOwned<Owned = T> + Hash + Eq,
+    T: Hash + Eq + Clone,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -81,12 +78,12 @@ where
     let mut ids_to_positions = HashMap::new();
 
     mapping.iter().for_each(|(k, v)| match v.get() {
-        None => ids_for_which_element_could_not_be_obtained.push(k.to_owned()),
+        None => ids_for_which_element_could_not_be_obtained.push(k.clone()),
         Some(element) => {
             if ids_for_which_element_could_not_be_obtained.len() == 0 {
                 let position = element.get_bounding_client_rect();
 
-                ids_to_positions.insert(k.to_owned(), (position.x(), position.y()));
+                ids_to_positions.insert(k.clone(), (position.x(), position.y()));
             }
         }
     });
@@ -102,10 +99,10 @@ fn flip<T, U, V>(
     mapping: HashMap<T, NodeRef<U>>,
     ids_to_positions: &HashMap<T, (f64, f64)>,
     reflow_target: NodeRef<Div>,
-    duration: Duration,
+    transition: String
 ) -> Result<(), FlipError<T>>
 where
-    T: ToOwned<Owned = T> + Hash + Eq,
+    T: Hash + Eq + Clone,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -124,10 +121,8 @@ where
         }
     };
 
-    style_elements_with_no_transform(&mapping, duration)
+    style_elements_with_no_transform(&mapping, transition)
         .map_err(|ts| FlipError::StyleElementsWithNoTransformError(ts))?;
-
-    set_timeout(|| {}, duration);
 
     Ok(())
 }
@@ -137,13 +132,13 @@ fn get_diffs_from_positions<T>(
     new: &HashMap<T, (f64, f64)>,
 ) -> HashMap<T, (f64, f64)>
 where
-    T: ToOwned<Owned = T> + Hash + Eq,
+    T: Hash + Eq + Clone,
 {
     old.iter()
         .map(|(k, (old_x, old_y))| {
             let (new_x, new_y) = new.get(k).unwrap();
 
-            (k.to_owned(), (old_x - new_x, old_y - new_y))
+            (k.clone(), (old_x - new_x, old_y - new_y))
         })
         .collect()
 }
@@ -153,14 +148,14 @@ fn style_elements_with_diffs<T, U, V>(
     diffs: &HashMap<T, (f64, f64)>,
 ) -> Result<(), Vec<T>>
 where
-    T: ToOwned<Owned = T> + Hash + Eq,
+    T: Hash + Eq + Clone,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
     let mut ids_for_which_element_could_not_be_obtained = Vec::new();
 
     mapping.iter().for_each(|(k, v)| match v.get() {
-        None => ids_for_which_element_could_not_be_obtained.push(k.to_owned()),
+        None => ids_for_which_element_could_not_be_obtained.push(k.clone()),
         Some(element) => {
             if ids_for_which_element_could_not_be_obtained.len() == 0 {
                 let (x, y) = diffs.get(k).unwrap();
@@ -181,22 +176,22 @@ where
 
 fn style_elements_with_no_transform<T, U, V>(
     mapping: &HashMap<T, NodeRef<U>>,
-    duration: Duration,
+    transition: String
 ) -> Result<(), Vec<T>>
 where
-    T: ToOwned<Owned = T> + Hash + Eq,
+    T: Hash + Eq + Clone,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
     let mut ids_for_which_element_could_not_be_obtained = Vec::new();
 
     mapping.iter().for_each(|(k, v)| match v.get() {
-        None => ids_for_which_element_could_not_be_obtained.push(k.to_owned()),
+        None => ids_for_which_element_could_not_be_obtained.push(k.clone()),
         Some(element) => {
             if ids_for_which_element_could_not_be_obtained.len() == 0 {
                 element.clone().style(
                     "transition",
-                    &format!("transform {}s", duration.as_secs_f64()),
+                    &transition
                 );
 
                 element.clone().style("transform", "");
@@ -215,14 +210,14 @@ fn remove_transition<T, U, V>(
     mapping: HashMap<T, NodeRef<U>>,
 ) -> Result<(), RemoveTransitionError<T>>
 where
-    T: ToOwned<Owned = T> + Hash + Eq,
+    T: Hash + Eq + Clone,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
     let mut ids_for_which_element_could_not_be_obtained = Vec::new();
 
     mapping.iter().for_each(|(k, v)| match v.get() {
-        None => ids_for_which_element_could_not_be_obtained.push(k.to_owned()),
+        None => ids_for_which_element_could_not_be_obtained.push(k.clone()),
         Some(element) => {
             if ids_for_which_element_could_not_be_obtained.len() == 0 {
                 element.clone().style("transition", "");
@@ -301,7 +296,7 @@ where
             }
             Self::StyleElementsWithNoTransformError(ids) => {
                 let ids = format_vec(ids).expect(EMPTY_ERROR_COLLECTION_EXPECT_MESSAGE);
-                write!(f, "Elements could not be obtained for IDs {ids} when attempting to style them with no transform and a transition duration")
+                write!(f, "Elements could not be obtained for IDs {ids} when attempting to style them with no transform and the given transition property")
             }
         }
     }
