@@ -52,7 +52,7 @@ pub fn prepare_flip<T, U, V>(
     PrepareFlipError<T>,
 >
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Display,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -72,7 +72,7 @@ fn get_positions_from_node_refs<T, U, V>(
     mapping: &HashMap<T, NodeRef<U>>,
 ) -> Result<HashMap<T, (f64, f64)>, Vec<T>>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Display,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -105,7 +105,7 @@ fn flip<T, U, V>(
     transition: String,
 ) -> Result<(), FlipError<T>>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Display,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -182,7 +182,7 @@ fn style_elements_with_no_transform<T, U, V>(
     transition: String,
 ) -> Result<(), Vec<T>>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Display,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
@@ -210,7 +210,7 @@ fn remove_transition<T, U, V>(
     mapping: HashMap<T, NodeRef<U>>,
 ) -> Result<(), RemoveTransitionError<T>>
 where
-    T: Hash + Eq + Clone,
+    T: Hash + Eq + Clone + Display,
     U: ElementDescriptor + Deref<Target = V> + Clone + 'static,
     V: Deref<Target = HtmlElement>,
 {
