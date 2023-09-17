@@ -89,9 +89,9 @@ where
     }
 }
 
-fn check_hash_map_key_diffs<'a, T, U>(
+fn check_hash_map_key_diffs<'a, T, U, V>(
     original: &'a HashMap<T, U>,
-    new: &'a HashMap<T, U>,
+    new: &'a HashMap<T, V>,
 ) -> Result<(), HashMapDiffError<T>>
 where
     T: Hash + Eq + Clone + Display,
@@ -118,11 +118,92 @@ where
     }
 }
 
+fn get_set_transform_and_transition_instructions<T, U>(
+    to_set: &HashMap<T, U>,
+) -> HashMap<T, SetTransformAndTransition<&U>>
+where
+    T: Hash + Eq + Clone + Display,
+{
+    to_set
+        .iter()
+        .map(|(k, v)| (k.clone(), SetTransformAndTransition(v)))
+        .collect()
+}
+
+#[derive(Debug)]
+struct SetTransformAndTransition<T>(T);
+
+impl<T> PartialEq<SetTransformAndTransition<T>> for SetTransformAndTransition<T>
+where
+    T: Eq,
+{
+    fn eq(&self, other: &SetTransformAndTransition<T>) -> bool {
+        let SetTransformAndTransition(original) = self;
+        let SetTransformAndTransition(new) = other;
+
+        original == new
+    }
+}
+
+fn get_remove_transform_instructions<T, U>(
+    to_remove: &HashMap<T, U>,
+) -> HashMap<T, RemoveTransform<&U>>
+where
+    T: Hash + Eq + Clone + Display,
+{
+    to_remove
+        .iter()
+        .map(|(k, v)| (k.clone(), RemoveTransform(v)))
+        .collect()
+}
+
+#[derive(Debug)]
+struct RemoveTransform<T>(T);
+
+impl<T> PartialEq<RemoveTransform<T>> for RemoveTransform<T>
+where
+    T: Eq,
+{
+    fn eq(&self, other: &RemoveTransform<T>) -> bool {
+        let RemoveTransform(original) = self;
+        let RemoveTransform(new) = other;
+
+        original == new
+    }
+}
+
+fn get_clear_style_instructions<T, U>(to_clear: &HashMap<T, U>) -> HashMap<T, ClearStyle<&U>>
+where
+    T: Hash + Eq + Clone + Display,
+{
+    to_clear
+        .iter()
+        .map(|(k, v)| (k.clone(), ClearStyle(v)))
+        .collect()
+}
+
+#[derive(Debug)]
+struct ClearStyle<T>(T);
+
+impl<T> PartialEq<ClearStyle<T>> for ClearStyle<T>
+where
+    T: Eq,
+{
+    fn eq(&self, other: &ClearStyle<T>) -> bool {
+        let ClearStyle(original) = self;
+        let ClearStyle(new) = other;
+
+        original == new
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
-        check_hash_map_key_diffs, get_compute_position_instructions,
-        get_diff_positions_instructions, ComputePosition, DiffPositions, HashMapDiffError,
+        check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
+        get_diff_positions_instructions, get_remove_transform_instructions,
+        get_set_transform_and_transition_instructions, ClearStyle, ComputePosition, DiffPositions,
+        HashMapDiffError, RemoveTransform, SetTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};
 
@@ -194,9 +275,12 @@ mod tests {
     fn compare_hash_map_errors<T>(make_hash_map: T)
     where
         T: for<'a> Fn(
-                &'a HashMap<&'static str, i32>,
-                &'a HashMap<&'static str, i32>,
-            ) -> Result<HashMap<&'static str, DiffPositions<&'a i32>>, HashMapDiffError<&'static str>>
+            &'a HashMap<&'static str, i32>,
+            &'a HashMap<&'static str, i32>,
+        ) -> Result<
+            HashMap<&'static str, DiffPositions<&'a i32>>,
+            HashMapDiffError<&'static str>,
+        >,
     {
         let first_hash_map_pair = (
             HashMap::from([("a", 0), ("b", 1)]),
@@ -214,7 +298,7 @@ mod tests {
         let hash_map_pairs = [
             first_hash_map_pair,
             second_hash_map_pair,
-            third_hash_map_pair
+            third_hash_map_pair,
         ];
 
         hash_map_pairs.iter().for_each(|(original, new)| {
@@ -226,10 +310,10 @@ mod tests {
                     assert_eq!(first_diff, second_diff);
                 }
                 (Ok(_), Err(diffs)) => {
-                    panic!("get_diff_positions_instructions returned error whilst check_hash_map_key_diffs did not. {:?} was the returned error", diffs);
+                    panic!("function returned error whilst check_hash_map_key_diffs did not. {:?} was the returned error", diffs);
                 }
                 (Err(diffs), Ok(_)) => {
-                    panic!("get_diff_positions_instructions did not return an error whilst check_hash_map_key_diffs did. {:?} was the returnedd error", diffs);
+                    panic!("function did not return an error whilst check_hash_map_key_diffs did. {:?} was the returnedd error", diffs);
                 }
                 (Ok(_), Ok(_)) => {
                     panic!(
@@ -245,6 +329,68 @@ mod tests {
         compare_hash_map_errors(|original, new| {
             Ok(get_diff_positions_instructions(original, new)?)
         });
+    }
+
+    #[test]
+    fn get_set_transform_and_transition_instructions_returns_hash_map_with_all_given_keys() {
+        let hash_map = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
+
+        let set_transform_and_transition_instructions =
+            get_set_transform_and_transition_instructions(&hash_map);
+
+        match check_hash_map_key_diffs(&hash_map, &set_transform_and_transition_instructions) {
+            Ok(()) => {
+                hash_map.keys().for_each(|k| {
+                    assert_eq!(
+                        set_transform_and_transition_instructions.get(k).unwrap(),
+                        &SetTransformAndTransition(hash_map.get(k).unwrap())
+                    );
+                });
+            }
+            Err(diffs) => {
+                panic!("Given hash map and returned should have the same keys, but {:?} differences were reported", diffs);
+            }
+        }
+    }
+
+    #[test]
+    fn get_remove_transform_instructions_returns_hash_map_with_all_given_keys() {
+        let hash_map = HashMap::from([("a", 0), ("b", 2), ("c", 4)]);
+
+        let remove_transform_instructions = get_remove_transform_instructions(&hash_map);
+
+        match check_hash_map_key_diffs(&hash_map, &remove_transform_instructions) {
+            Ok(()) => {
+                hash_map.keys().for_each(|k| {
+                    assert_eq!(
+                        &RemoveTransform(hash_map.get(k).unwrap()),
+                        remove_transform_instructions.get(k).unwrap()
+                    );
+                });
+            }
+            Err(diffs) => {
+                panic!("Given hash map and returned should have the same keys, but {:?} differences were reported", diffs);
+            }
+        }
+    }
+
+    #[test]
+    fn get_clear_style_instructions_returns_hash_map_with_all_given_keys() {
+        let hash_map = HashMap::from([("a", 0), ("b", 2), ("c", 4)]);
+
+        let clear_style_instructions = get_clear_style_instructions(&hash_map);
+
+        match check_hash_map_key_diffs(&hash_map, &clear_style_instructions) {
+            Ok(()) => hash_map.keys().for_each(|k| {
+                assert_eq!(
+                    &ClearStyle(hash_map.get(k).unwrap()),
+                    clear_style_instructions.get(k).unwrap()
+                )
+            }),
+            Err(diffs) => {
+                panic!("Given hash map and returned should have same keys, but {:?} differences were reported", diffs);
+            }
+        }
     }
 
     #[test]
@@ -306,7 +452,4 @@ mod tests {
             }
         }
     }
-
-    // #[test]
-    // fn get_set_transform_and_transition_instructions
 }
