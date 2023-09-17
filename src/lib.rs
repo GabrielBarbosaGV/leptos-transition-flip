@@ -4,6 +4,81 @@ use std::{
     hash::Hash,
 };
 
+struct BeginFlip;
+
+impl BeginFlip {
+    fn set_initial_nodes<T, U>(ids_to_nodes: HashMap<T, U>) -> FlipNodes<T, U>
+    where
+        T: Hash + Eq + Clone + Display,
+    {
+        FlipNodes::new(ids_to_nodes)
+    }
+}
+
+#[derive(Debug)]
+struct FlipNodes<T, U>(HashMap<T, U>);
+
+impl<T, U> FlipNodes<T, U>
+where
+    T: Hash + Eq + Clone + Display,
+{
+    fn new(ids_to_nodes: HashMap<T, U>) -> Self {
+        FlipNodes(ids_to_nodes)
+    }
+
+    fn nodes(&self) -> &HashMap<T, U> {
+        let FlipNodes(nodes) = self;
+
+        &nodes
+    }
+
+    fn compute_positions<'a, V>(
+        &'a self,
+        resolver: impl Fn(&ComputePosition<&U>) -> V,
+    ) -> FlipPositions<'a, T, U, V> {
+        let compute_position_instructions = get_compute_position_instructions(self.nodes());
+
+        let nodes = self.nodes();
+
+        let positions = compute_position_instructions
+            .iter()
+            .map(|(k, v)| ((*k).clone(), resolver(v)))
+            .collect();
+
+        FlipPositions::new(nodes, positions)
+    }
+}
+
+impl<T, U> PartialEq<FlipNodes<T, U>> for FlipNodes<T, U>
+where
+    T: Hash + Eq + Clone + Display,
+    U: Eq,
+{
+    fn eq(&self, other: &FlipNodes<T, U>) -> bool {
+        self.nodes() == other.nodes()
+    }
+}
+
+#[derive(Debug)]
+struct FlipPositions<'a, T, U, V> {
+    nodes: &'a HashMap<T, U>,
+    positions: HashMap<T, V>,
+}
+
+impl<'a, T, U, V> FlipPositions<'a, T, U, V> {
+    fn new(nodes: &'a HashMap<T, U>, positions: HashMap<T, V>) -> Self {
+        FlipPositions { nodes, positions }
+    }
+
+    fn nodes(&self) -> &'a HashMap<T, U> {
+        self.nodes
+    }
+
+    fn positions(&self) -> &HashMap<T, V> {
+        &self.positions
+    }
+}
+
 fn get_compute_position_instructions<T, U>(
     to_compute: &HashMap<T, U>,
 ) -> HashMap<&T, ComputePosition<&U>>
@@ -202,8 +277,8 @@ mod tests {
     use crate::{
         check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
         get_diff_positions_instructions, get_remove_transform_instructions,
-        get_set_transform_and_transition_instructions, ClearStyle, ComputePosition, DiffPositions,
-        HashMapDiffError, RemoveTransform, SetTransformAndTransition,
+        get_set_transform_and_transition_instructions, BeginFlip, ClearStyle, ComputePosition,
+        DiffPositions, FlipNodes, HashMapDiffError, RemoveTransform, SetTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};
 
@@ -451,5 +526,33 @@ mod tests {
                 assert_eq!(expected, present_in_new_but_not_original);
             }
         }
+    }
+
+    #[test]
+    fn begin_flip_takes_ids_to_nodes() {
+        let hash_map = HashMap::from([("a", 0), ("b", 1), ("b", 2)]);
+
+        let flip_nodes = BeginFlip::set_initial_nodes(hash_map.clone());
+
+        assert_eq!(flip_nodes.nodes(), &hash_map);
+    }
+
+    #[test]
+    fn flip_nodes_computes_positions_with_resolver() {
+        let nodes = HashMap::from([("a", 1), ("b", 3), ("c", 3)]);
+        let compute_position_instructions = get_compute_position_instructions(&nodes);
+
+        let resolver = |&ComputePosition(p): &ComputePosition<&i32>| p * 10;
+
+        let flip_nodes = FlipNodes::new(nodes);
+
+        let flip_positions = flip_nodes.compute_positions(resolver);
+
+        flip_positions.positions().keys().map(|k| {
+            assert_eq!(
+                *flip_positions.positions().get(k).unwrap(),
+                flip_nodes.nodes().get(k).unwrap() * 10
+            );
+        });
     }
 }
