@@ -66,7 +66,8 @@ struct FlipPositions<'a, T, U, V> {
 }
 
 impl<'a, T, U, V> FlipPositions<'a, T, U, V>
-where T: Hash + Eq + Clone + Display
+where
+    T: Hash + Eq + Clone + Display,
 {
     fn new(nodes: &'a HashMap<T, U>, positions: HashMap<T, V>) -> Self {
         FlipPositions { nodes, positions }
@@ -80,10 +81,15 @@ where T: Hash + Eq + Clone + Display
         &self.positions
     }
 
-    fn compute_diffs<X>(&self, other: FlipPositions<'a, T, U, V>, resolver: impl Fn(&DiffPositions<&U>) -> X) -> Result<FlipDiffs<'a, T, U, X>, HashMapDiffError<T>> {
-        let diffs = get_diff_positions_instructions(self.nodes(), other.nodes())?.iter().map(|(k, v)| {
-            ((*k).clone(), resolver(v))
-        }).collect();
+    fn compute_diffs<X>(
+        &self,
+        other: FlipPositions<'a, T, U, V>,
+        resolver: impl Fn(&DiffPositions<&V>) -> X,
+    ) -> Result<FlipDiffs<'a, T, U, X>, HashMapDiffError<T>> {
+        let diffs = get_diff_positions_instructions(self.positions(), other.positions())?
+            .iter()
+            .map(|(k, v)| ((*k).clone(), resolver(v)))
+            .collect();
 
         Ok(FlipDiffs::new(self.nodes(), diffs))
     }
@@ -92,21 +98,24 @@ where T: Hash + Eq + Clone + Display
 #[derive(Debug)]
 struct FlipDiffs<'a, T, U, V> {
     nodes: &'a HashMap<T, U>,
-    diffs: HashMap<T, V>
+    diffs: HashMap<T, V>,
 }
 
 impl<'a, T, U, V> FlipDiffs<'a, T, U, V> {
     fn new(nodes: &'a HashMap<T, U>, diffs: HashMap<T, V>) -> Self {
-        FlipDiffs {
-            nodes,
-            diffs
-        }
+        FlipDiffs { nodes, diffs }
     }
 
     fn nodes(&self) -> &'a HashMap<T, U> {
         let FlipDiffs { nodes, .. } = self;
 
         &nodes
+    }
+
+    fn diffs(&self) -> &HashMap<T, V> {
+        let FlipDiffs { diffs, .. } = self;
+
+        &diffs
     }
 }
 
@@ -309,7 +318,8 @@ mod tests {
         check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
         get_diff_positions_instructions, get_remove_transform_instructions,
         get_set_transform_and_transition_instructions, BeginFlip, ClearStyle, ComputePosition,
-        DiffPositions, FlipNodes, HashMapDiffError, RemoveTransform, SetTransformAndTransition, FlipPositions,
+        DiffPositions, FlipNodes, FlipPositions, HashMapDiffError, RemoveTransform,
+        SetTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};
 
@@ -586,7 +596,7 @@ mod tests {
             );
         });
     }
-    
+
     #[test]
     fn compute_diffs_return_flip_diffs() {
         let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
@@ -594,22 +604,19 @@ mod tests {
         let original_begin_flip = BeginFlip::set_initial_nodes(&nodes);
 
         let original_flip_positions =
-            original_begin_flip
-            .compute_positions(|&ComputePosition(p)| *p * 10);
+            original_begin_flip.compute_positions(|&ComputePosition(p)| *p * 10);
 
         let new_begin_flip = BeginFlip::set_initial_nodes(&nodes);
 
-        let new_flip_positions =
-            new_begin_flip
-            .compute_positions(|&ComputePosition(p)| *p * 20);
+        let new_flip_positions = new_begin_flip.compute_positions(|&ComputePosition(p)| *p * 20);
 
         let flip_diffs = original_flip_positions
             .compute_diffs(new_flip_positions, |&DiffPositions(old, new)| *old - *new);
 
-        let expected = HashMap::from([("a", 10), ("b", 20), ("c", 30)]);
+        let expected = HashMap::from([("a", -10), ("b", -20), ("c", -30)]);
 
         nodes.keys().for_each(|k| {
-            let actual_diff = flip_diffs.as_ref().unwrap().nodes().get(k).unwrap();
+            let actual_diff = flip_diffs.as_ref().unwrap().diffs().get(k).unwrap();
             let expected_diff = expected.get(k).unwrap();
 
             assert_eq!(actual_diff, expected_diff);
