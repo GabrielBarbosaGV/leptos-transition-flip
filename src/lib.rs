@@ -101,7 +101,10 @@ struct FlipDiffs<'a, T, U, V> {
     diffs: HashMap<T, V>,
 }
 
-impl<'a, T, U, V> FlipDiffs<'a, T, U, V> {
+impl<'a, T, U, V> FlipDiffs<'a, T, U, V>
+where
+    T: Hash + Eq + Clone + Display,
+{
     fn new(nodes: &'a HashMap<T, U>, diffs: HashMap<T, V>) -> Self {
         FlipDiffs { nodes, diffs }
     }
@@ -116,6 +119,41 @@ impl<'a, T, U, V> FlipDiffs<'a, T, U, V> {
         let FlipDiffs { diffs, .. } = self;
 
         &diffs
+    }
+
+    fn set_transforms_and_transitions(
+        &self,
+        resolver: impl Fn(&SetTransformAndTransition<&U>, &V) -> (),
+    ) -> FlipTransformAndTransition<'a, T, U> {
+        let set_transform_and_transition_instructions =
+            get_set_transform_and_transition_instructions(self.nodes());
+
+        set_transform_and_transition_instructions
+            .iter()
+            .for_each(|(k, v)| {
+                resolver(v, self.diffs().get(k).unwrap());
+            });
+
+        FlipTransformAndTransition {
+            nodes: self.nodes(),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct FlipTransformAndTransition<'a, T, U> {
+    nodes: &'a HashMap<T, U>,
+}
+
+impl<'a, T, U> FlipTransformAndTransition<'a, T, U> {
+    fn new(nodes: &'a HashMap<T, U>) -> Self {
+        FlipTransformAndTransition { nodes }
+    }
+
+    fn nodes(&self) -> &'a HashMap<T, U> {
+        let FlipTransformAndTransition { nodes } = self;
+
+        &nodes
     }
 }
 
@@ -318,7 +356,7 @@ mod tests {
         check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
         get_diff_positions_instructions, get_remove_transform_instructions,
         get_set_transform_and_transition_instructions, BeginFlip, ClearStyle, ComputePosition,
-        DiffPositions, FlipNodes, FlipPositions, HashMapDiffError, RemoveTransform,
+        DiffPositions, FlipDiffs, FlipNodes, FlipPositions, HashMapDiffError, RemoveTransform,
         SetTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};
@@ -621,5 +659,18 @@ mod tests {
 
             assert_eq!(actual_diff, expected_diff);
         });
+    }
+
+    #[test]
+    fn set_transforms_and_transitions_returns_flip_transform_and_position() {
+        let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
+        let diffs = HashMap::from([("a", 10), ("b", 20), ("c", 30)]);
+
+        let flip_diffs = FlipDiffs::new(&nodes, diffs);
+
+        let flip_transform_and_transition =
+            flip_diffs.set_transforms_and_transitions(|node, diff| ());
+
+        assert_eq!(&nodes, flip_transform_and_transition.nodes());
     }
 }
