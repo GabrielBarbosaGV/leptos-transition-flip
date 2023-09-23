@@ -145,7 +145,7 @@ struct FlipTransformAndTransition<'a, T, U> {
     nodes: &'a HashMap<T, U>,
 }
 
-impl<'a, T, U> FlipTransformAndTransition<'a, T, U> {
+impl<'a, T, U> FlipTransformAndTransition<'a, T, U> where T: Hash + Eq + Clone + Display {
     fn new(nodes: &'a HashMap<T, U>) -> Self {
         FlipTransformAndTransition { nodes }
     }
@@ -154,6 +154,12 @@ impl<'a, T, U> FlipTransformAndTransition<'a, T, U> {
         let FlipTransformAndTransition { nodes } = self;
 
         &nodes
+    }
+
+    fn clear_styles(&self, resolver: impl Fn(&ClearStyle<&U>) -> ()) {
+        let clear_instructions = get_clear_style_instructions(self.nodes());
+
+        clear_instructions.values().for_each(resolver);
     }
 }
 
@@ -357,7 +363,7 @@ mod tests {
         get_diff_positions_instructions, get_remove_transform_instructions,
         get_set_transform_and_transition_instructions, BeginFlip, ClearStyle, ComputePosition,
         DiffPositions, FlipDiffs, FlipNodes, FlipPositions, HashMapDiffError, RemoveTransform,
-        SetTransformAndTransition,
+        SetTransformAndTransition, FlipTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};
 
@@ -672,5 +678,14 @@ mod tests {
             flip_diffs.set_transforms_and_transitions(|node, diff| ());
 
         assert_eq!(&nodes, flip_transform_and_transition.nodes());
+    }
+
+    #[test]
+    fn flip_transform_and_transition_allows_clearing_styles() {
+        let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
+
+        let flip_transform_and_transition = FlipTransformAndTransition::new(&nodes);
+
+        flip_transform_and_transition.clear_styles(|v| ());
     }
 }
