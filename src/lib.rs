@@ -1,9 +1,141 @@
+use leptos::NodeRef;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     hash::Hash,
+    ops::Deref,
 };
 
+use leptos::html::ElementDescriptor;
+use web_sys::Element;
+
+fn prepare_flip<'a, T, U, V>(
+    ids_to_nodes: &'a HashMap<T, NodeRef<U>>,
+    reflow_target: U,
+    transition_style: &'static str,
+) -> (impl FnOnce() -> Result<(), FlipError<T>> + 'a, impl FnOnce() -> Result<(), ClearError<T>> + 'a)
+where
+    T: Hash + Eq + Clone + Display,
+    U: Deref<Target = V> + ElementDescriptor + Clone,
+    V: Deref<Target = Element>,
+{
+    let do_flip = move || {
+        let flip_nodes = BeginFlip::set_initial_nodes(ids_to_nodes);
+
+        let flip_positions = flip_nodes.compute_positions(|k, v| match v.get() {
+            Some(v) => {
+                let bounding_client_rect = v.get_bounding_client_rect();
+
+                let x = bounding_client_rect.x();
+                let y = bounding_client_rect.y();
+
+                Ok((x, y))
+            }
+            None => Err(k),
+        }).map_err(|ts| FlipError::CouldNotGetHtmlElement(ts))?;
+
+        flip(flip_positions, transition_style)
+    };
+
+    let clear = move || {
+        let flip_nodes = BeginFlip::set_initial_nodes(ids_to_nodes);
+
+        flip_nodes.clear_styles(|k, v| match v.get() {
+            Some(html_element) => {
+                html_element.clone().style("transform", "");
+                html_element.clone().style("transition", "");
+
+                Ok(())
+            },
+            None => Err(k.clone())
+        }).map_err(|ts| ClearError::CouldNotGetHtmlElement(ts))?;
+
+        Ok(())
+    };
+
+    (do_flip, clear)
+}
+
+#[derive(Debug)]
+enum PrepareFlipError<T> {
+    CouldNotGetHtmlElement(Vec<T>),
+}
+
+fn flip<'a, T, U, V>(
+    flip_positions: FlipPositions<'a, T, NodeRef<U>, (f64, f64)>,
+    transition_style: &'static str
+) -> Result<(), FlipError<T>>
+where
+    T: Hash + Eq + Clone + Display,
+    U: Deref<Target = V> + ElementDescriptor + Clone,
+    V: Deref<Target = Element>,
+{
+    let nodes = flip_positions.nodes();
+
+    let new_flip_nodes = BeginFlip::set_initial_nodes(nodes);
+
+    let new_flip_positions = new_flip_nodes
+        .compute_positions(|k, v| match v.get() {
+            Some(v) => {
+                let bounding_client_rect = v.get_bounding_client_rect();
+
+                let x = bounding_client_rect.x();
+                let y = bounding_client_rect.y();
+
+                Ok((x, y))
+            }
+            None => Err(k),
+        })
+        .map_err(|e| FlipError::CouldNotGetHtmlElement(e))?;
+
+    let flip_diffs = flip_positions
+        .compute_diffs(new_flip_positions, |_, o, n| {
+            let (original_x, original_y) = o;
+            let (new_x, new_y) = n;
+
+            let delta_x = original_x - new_x;
+            let delta_y = original_y - new_y;
+
+            (delta_x, delta_y)
+        })
+        .map_err(
+            |HashMapDiffError {
+                 present_in_original_but_not_new,
+                 present_in_new_but_not_original,
+             }| FlipError::HashMapDiffError {
+                present_in_new_but_not_original,
+                present_in_original_but_not_new,
+            },
+        )?;
+
+    let flip_transform_and_transition =
+        flip_diffs.set_transforms_and_transitions(|t, node, (delta_x, delta_y)| match node.get() {
+            Some(html_element) => {
+                html_element.clone().style("transform", &format!("translate({delta_x}px, {delta_y}px)"));
+                html_element.clone().style("transition", transition_style);
+
+                Ok(())
+            },
+            None => Err(t.clone())
+        }).map_err(|ts| FlipError::CouldNotGetHtmlElement(ts))?;
+
+    Ok(())
+}
+
+#[derive(Debug)]
+enum FlipError<T> {
+    CouldNotGetHtmlElement(Vec<T>),
+    HashMapDiffError {
+        present_in_new_but_not_original: HashSet<T>,
+        present_in_original_but_not_new: HashSet<T>,
+    },
+}
+
+enum ClearError<T> {
+    CouldNotGetHtmlElement(Vec<T>)
+}
+
+#[derive(Debug)]
 struct BeginFlip;
 
 impl BeginFlip {
@@ -34,18 +166,70 @@ where
 
     fn compute_positions<V>(
         &'a self,
-        resolver: impl Fn(&ComputePosition<&U>) -> V,
-    ) -> FlipPositions<'a, T, U, V> {
+        resolver: impl Fn(&'a T, &'a U) -> Result<V, &'a T>,
+    ) -> Result<FlipPositions<'a, T, U, V>, Vec<T>> {
         let compute_position_instructions = get_compute_position_instructions(self.nodes());
 
         let nodes = self.nodes();
 
-        let positions = compute_position_instructions
+        let positions: HashMap<_, _> = compute_position_instructions
             .iter()
-            .map(|(k, v)| ((*k).clone(), resolver(v)))
+            .map(|(k, v)| {
+                let ComputePosition(v) = v;
+
+                ((*k).clone(), resolver(k, v))
+            })
             .collect();
 
-        FlipPositions::new(nodes, positions)
+        let problematic_keys: Vec<_> = positions
+            .iter()
+            .filter(|(k, v)| v.is_err())
+            .map(|(_, v)| match *v {
+                Ok(_) => panic!("Presence of error was previously asserted"),
+                Err(e) => e
+            })
+            .map(|v| v.clone())
+            .collect();
+
+        if problematic_keys.len() > 0 {
+            return Err(problematic_keys);
+        }
+
+        let positions: Result<HashMap<_, _>, &T> =
+            positions.into_iter().map(|(k, v)| Ok((k, v?))).collect();
+
+        Ok(FlipPositions::new(
+            nodes,
+            positions.map_err(|t| vec![t.clone()])?,
+        ))
+    }
+
+    fn clear_styles(&'a self, resolver: impl for<'b> Fn(&'b T, &'b U) -> Result<(), T>) -> Result<(), Vec<T>> {
+        let clear_instructions = get_clear_style_instructions(self.nodes());
+
+        let results: Vec<Result<(), T>> = clear_instructions
+            .iter()
+            .map(|(k, v)| {
+                let ClearStyle(v) = v;
+
+                Ok(resolver(k, v)?)
+            })
+            .collect();
+
+        let problematic_keys: Vec<_> = results
+            .iter()
+            .filter(|r| r.is_err())
+            .map(|r| match r {
+                Ok(()) => panic!("Presence of error was previously asserted"),
+                Err(e) => e.clone()
+            })
+            .collect();
+
+        if problematic_keys.len() > 0 {
+            Err(problematic_keys)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -84,11 +268,15 @@ where
     fn compute_diffs<X>(
         &self,
         other: FlipPositions<'a, T, U, V>,
-        resolver: impl Fn(&DiffPositions<&V>) -> X,
+        resolver: impl Fn(&T, &V, &V) -> X,
     ) -> Result<FlipDiffs<'a, T, U, X>, HashMapDiffError<T>> {
         let diffs = get_diff_positions_instructions(self.positions(), other.positions())?
             .iter()
-            .map(|(k, v)| ((*k).clone(), resolver(v)))
+            .map(|(k, v)| {
+                let DiffPositions(o, n) = v;
+
+                ((*k).clone(), resolver(k, o, n))
+            })
             .collect();
 
         Ok(FlipDiffs::new(self.nodes(), diffs))
@@ -123,20 +311,31 @@ where
 
     fn set_transforms_and_transitions(
         &self,
-        resolver: impl Fn(&SetTransformAndTransition<&U>, &V) -> (),
-    ) -> FlipTransformAndTransition<'a, T, U> {
+        resolver: impl Fn(&T, &U, &V) -> Result<(), T>,
+    ) -> Result<FlipTransformAndTransition<'a, T, U>, Vec<T>> {
         let set_transform_and_transition_instructions =
             get_set_transform_and_transition_instructions(self.nodes());
+
+        let mut problematic_keys = Vec::new();
 
         set_transform_and_transition_instructions
             .iter()
             .for_each(|(k, v)| {
-                resolver(v, self.diffs().get(k).unwrap());
+                let SetTransformAndTransition(v) = v;
+
+                match resolver(k, v, self.diffs().get(k).unwrap()) {
+                    Ok(()) => {}
+                    Err(t) => {
+                        problematic_keys.push(t.clone());
+                    }
+                }
             });
 
-        FlipTransformAndTransition {
-            nodes: self.nodes(),
+        if problematic_keys.len() > 0 {
+            return Err(problematic_keys);
         }
+
+        Ok(FlipTransformAndTransition::new(self.nodes()))
     }
 }
 
@@ -145,7 +344,10 @@ struct FlipTransformAndTransition<'a, T, U> {
     nodes: &'a HashMap<T, U>,
 }
 
-impl<'a, T, U> FlipTransformAndTransition<'a, T, U> where T: Hash + Eq + Clone + Display {
+impl<'a, T, U> FlipTransformAndTransition<'a, T, U>
+where
+    T: Hash + Eq + Clone + Display,
+{
     fn new(nodes: &'a HashMap<T, U>) -> Self {
         FlipTransformAndTransition { nodes }
     }
@@ -154,12 +356,6 @@ impl<'a, T, U> FlipTransformAndTransition<'a, T, U> where T: Hash + Eq + Clone +
         let FlipTransformAndTransition { nodes } = self;
 
         &nodes
-    }
-
-    fn clear_styles(&self, resolver: impl Fn(&ClearStyle<&U>) -> ()) {
-        let clear_instructions = get_clear_style_instructions(self.nodes());
-
-        clear_instructions.values().for_each(resolver);
     }
 }
 
@@ -362,8 +558,8 @@ mod tests {
         check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
         get_diff_positions_instructions, get_remove_transform_instructions,
         get_set_transform_and_transition_instructions, BeginFlip, ClearStyle, ComputePosition,
-        DiffPositions, FlipDiffs, FlipNodes, FlipPositions, HashMapDiffError, RemoveTransform,
-        SetTransformAndTransition, FlipTransformAndTransition,
+        DiffPositions, FlipDiffs, FlipNodes, HashMapDiffError,
+        RemoveTransform, SetTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};
 
@@ -624,14 +820,16 @@ mod tests {
 
     #[test]
     fn flip_nodes_computes_positions_with_resolver() {
-        let nodes = HashMap::from([("a", 1), ("b", 3), ("c", 3)]);
+        let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
         let compute_position_instructions = get_compute_position_instructions(&nodes);
 
-        let resolver = |&ComputePosition(p): &ComputePosition<&i32>| p * 10;
+        let resolver = |_: &_, p: &_| Ok(p * 10);
 
         let flip_nodes = FlipNodes::new(&nodes);
 
-        let flip_positions = flip_nodes.compute_positions(resolver);
+        let flip_positions = flip_nodes
+            .compute_positions(resolver)
+            .expect("Computing positions should not return an error");
 
         flip_positions.positions().keys().for_each(|k| {
             assert_eq!(
@@ -647,15 +845,18 @@ mod tests {
 
         let original_begin_flip = BeginFlip::set_initial_nodes(&nodes);
 
-        let original_flip_positions =
-            original_begin_flip.compute_positions(|&ComputePosition(p)| *p * 10);
+        let original_flip_positions = original_begin_flip
+            .compute_positions(|_, p| Ok(*p * 10))
+            .expect("All elements should be had after setting initial nodes for original");
 
         let new_begin_flip = BeginFlip::set_initial_nodes(&nodes);
 
-        let new_flip_positions = new_begin_flip.compute_positions(|&ComputePosition(p)| *p * 20);
+        let new_flip_positions = new_begin_flip
+            .compute_positions(|_, p| Ok(*p * 20))
+            .expect("All elements should be had after setting initial nodes for new");
 
-        let flip_diffs = original_flip_positions
-            .compute_diffs(new_flip_positions, |&DiffPositions(old, new)| *old - *new);
+        let flip_diffs =
+            original_flip_positions.compute_diffs(new_flip_positions, |_, old, new| *old - *new);
 
         let expected = HashMap::from([("a", -10), ("b", -20), ("c", -30)]);
 
@@ -674,18 +875,19 @@ mod tests {
 
         let flip_diffs = FlipDiffs::new(&nodes, diffs);
 
-        let flip_transform_and_transition =
-            flip_diffs.set_transforms_and_transitions(|node, diff| ());
+        let flip_transform_and_transition = flip_diffs
+            .set_transforms_and_transitions(|_, node, diff| Ok(()))
+            .expect("Setting transforms and transitions should not fail");
 
         assert_eq!(&nodes, flip_transform_and_transition.nodes());
     }
 
     #[test]
-    fn flip_transform_and_transition_allows_clearing_styles() {
+    fn flip_nodes_allows_clearing_of_styles() {
         let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
 
-        let flip_transform_and_transition = FlipTransformAndTransition::new(&nodes);
+        let flip_transform_and_transition = FlipNodes::new(&nodes);
 
-        flip_transform_and_transition.clear_styles(|v| ());
+        let _ = flip_transform_and_transition.clear_styles(|k, v| Ok(()));
     }
 }
