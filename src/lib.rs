@@ -1,18 +1,68 @@
+//! Allows FLIP transitions between element positions by using provided NodeRefs from the Leptos
+//! crate
+
 use leptos::{NodeRef, leptos_dom::console_log};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     hash::Hash,
-    ops::Deref,
+    ops::Deref
 };
 
 use leptos::html::ElementDescriptor;
 use web_sys::HtmlElement;
 
+/// Main function of this crate. Returns a [`std::Result`] whose Ok is a pair of closures, (flip,
+/// clear), which performs the transition when an element's position is changed, and clears the
+/// styles of the transitioned elements, respectively. The Err variant contains a
+/// [`crate::PrepareFlipError`], whose single variant is a CouldNotGetHtmlElement, which itself
+/// contains a [`std::collections::Vec`] with all IDs for which getting an element was not
+/// possible. The reason why prepare_flip has to calculate the positions of the elements is to
+/// store them for later comparison with the new positions, and calculation of the element's
+/// offset for the FLIP transition.
+///
+/// Example:
+///
+/// ```ignore
+/// // ...
+///
+/// let reflow_target = create_node_ref(cx);
+/// 
+/// let first_node_ref = create_node_ref(cx);
+/// let second_node_ref = create_node_ref(cx);
+/// let third_node_ref = create_node_ref(cx);
+///
+/// let ids_to_nodes = HashMap::from([
+///     (1, first_node_ref),
+///     (2, second_node_ref),
+///     (3, third_node_ref)
+/// ]);
+///
+/// let (flip, clear) = prepare_flip(
+///     ids_to_nodes,
+///     reflow_target,
+///     "transform 0.6s".to_string()
+/// ).map_err(|e| format!("Prepare flip failed with error: {e}"))?;
+///
+/// // Perform actions that will change the node refs' elements' positions
+/// // ...
+///
+/// flip().map_err(|e| format!("Flip failed with error: {e}"))?;
+///
+/// // ...
+///
+/// set_timeout(|| match clear() {
+///     Ok(()) => (),
+///     Err(e) => console_log(&format!("An error occurred when attempting to clear the elements' styles: {e}"))
+/// });
+///
+/// Ok(())
+/// 
+/// ```
 pub fn prepare_flip<T, U, V>(
     ids_to_nodes: HashMap<T, NodeRef<U>>,
     reflow_target: NodeRef<U>,
-    transition_style: &'static str,
+    transition_style: String,
 ) -> Result<(
     impl FnOnce() -> Result<(), FlipError<T>>,
     impl FnOnce() -> Result<(), ClearError<T>>,
@@ -67,10 +117,24 @@ pub enum PrepareFlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),
 }
 
+impl<T> Display for PrepareFlipError<T> where T: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CouldNotGetHtmlElement(ts) => {
+                write!(
+                    f,
+                    "Could not get element(s) from node reference(s) associated with {}",
+                    ts.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                )
+            }
+        }
+    }
+}
+
 fn flip<T, U, V>(
     flip_positions: FlipPositions<T, NodeRef<U>, (f64, f64)>,
     reflow_target: NodeRef<U>,
-    transition_style: &'static str,
+    transition_style: String,
 ) -> Result<(), FlipError<T>>
 where
     T: Hash + Eq + Clone + Display,
@@ -128,8 +192,6 @@ where
                     .clone()
                     .style("transform", &format!("translate({delta_x}px, {delta_y}px)"));
 
-                // TODO check why deltas are zero at this point
-
                 Ok(())
             }
             None => Err(t.clone()),
@@ -143,7 +205,7 @@ where
 
     let flip_remove_transform_and_set_transition = flip_transform.remove_transform_and_set_transition(|t, node| match node.get() {
         Some(html_element) => {
-            html_element.clone().style("transition", transition_style);
+            html_element.clone().style("transition", transition_style.clone());
             html_element.clone().style("transform", "");
 
             Ok(())
@@ -167,9 +229,66 @@ pub enum FlipError<T> {
     },
 }
 
+impl<T> Display for FlipError<T> where T: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CouldNotGetReflowTarget => {
+                write!(f, "Could not get HTML element from given reflow target")
+            },
+            Self::CouldNotGetHtmlElement(ts) => {
+                write!(
+                    f,
+                    "Could not get element(s) from node references(s) associated with {}",
+                    ts.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                )
+            },
+            Self::HashMapDiffError {
+                present_in_new_but_not_original,
+                present_in_original_but_not_new
+            } => {
+                write!(
+                    f,
+
+                    "An error occurred when trying to compute the differences in \
+                    position between the original elements and the old elements. \
+                    The elements present in the first hash map but not the second \
+                    are {}, while the elements present in the second hash map but \
+                    not the first are {}",
+
+                    present_in_original_but_not_new
+                        .iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", "),
+
+                    present_in_new_but_not_original
+                        .iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ClearError<T> {
     CouldNotGetHtmlElement(Vec<T>),
+}
+
+impl<T> Display for ClearError<T> where T: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CouldNotGetHtmlElement(ts) => {
+                write!(
+                    f,
+                    "Could not get element(s) for node reference(s) associated with {}",
+                    ts.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                )
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
