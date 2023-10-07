@@ -151,6 +151,9 @@ where
         None => Err(t.clone())
     });
 
+    flip_remove_transform_and_set_transition
+        .map_err(|ts| FlipError::CouldNotGetHtmlElement(ts))?;
+
     Ok(())
 }
 
@@ -236,7 +239,7 @@ where
 
         let problematic_keys: Vec<_> = positions
             .iter()
-            .filter(|(k, v)| v.is_err())
+            .filter(|(_, v)| v.is_err())
             .map(|(_, v)| match v {
                 Ok(_) => panic!("Presence of error was previously asserted"),
                 Err(e) => e,
@@ -928,7 +931,6 @@ mod tests {
     #[test]
     fn flip_nodes_computes_positions_with_resolver() {
         let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
-        let compute_position_instructions = get_compute_position_instructions(&nodes);
 
         let resolver = |_: &_, p: &_| Ok(p * 10);
 
@@ -987,7 +989,7 @@ mod tests {
         let flip_diffs = FlipDiffs::new(cloned_nodes, diffs);
 
         let flip_transform_and_transition = flip_diffs
-            .set_transforms(|_, node, diff| Ok(()))
+            .set_transforms(|_, _, _| Ok(()))
             .expect("Setting transforms and transitions should not fail");
 
         assert_eq!(&nodes, flip_transform_and_transition.nodes());
@@ -999,6 +1001,6 @@ mod tests {
 
         let flip_transform_and_transition = FlipNodes::new(nodes);
 
-        let _ = flip_transform_and_transition.clear_styles(|k, v| Ok(()));
+        let _ = flip_transform_and_transition.clear_styles(|_, _| Ok(()));
     }
 }
