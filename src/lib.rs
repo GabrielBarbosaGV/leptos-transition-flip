@@ -1,23 +1,23 @@
 //! Allows FLIP transitions between element positions by using provided NodeRefs from the Leptos
-//! crate
+//! crate.
 
-use leptos::{NodeRef, leptos_dom::console_log};
+use leptos::{leptos_dom::console_log, NodeRef};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     hash::Hash,
-    ops::Deref
+    ops::Deref,
 };
 
 use leptos::html::ElementDescriptor;
 use web_sys::HtmlElement;
 
-/// Main function of this crate. Returns a [`std::Result`] whose Ok is a pair of closures, (flip,
-/// clear), which performs the transition when an element's position is changed, and clears the
+/// Main function of this crate. Returns a [`Result`] whose Ok is a pair of closures, `(flip,
+/// clear)`, which performs the transition when an element's position is changed, and clears the
 /// styles of the transitioned elements, respectively. The Err variant contains a
-/// [`crate::PrepareFlipError`], whose single variant is a CouldNotGetHtmlElement, which itself
-/// contains a [`std::collections::Vec`] with all IDs for which getting an element was not
-/// possible. The reason why prepare_flip has to calculate the positions of the elements is to
+/// [`PrepareFlipError`], whose single variant is a `CouldNotGetHtmlElement`, which itself
+/// contains a [`Vec`] with all IDs for which getting an element was not
+/// possible. The reason why [`prepare_flip`] has to calculate the positions of the elements is to
 /// store them for later comparison with the new positions, and calculation of the element's
 /// offset for the FLIP transition.
 ///
@@ -27,7 +27,7 @@ use web_sys::HtmlElement;
 /// // ...
 ///
 /// let reflow_target = create_node_ref(cx);
-/// 
+///
 /// let first_node_ref = create_node_ref(cx);
 /// let second_node_ref = create_node_ref(cx);
 /// let third_node_ref = create_node_ref(cx);
@@ -54,19 +54,22 @@ use web_sys::HtmlElement;
 /// set_timeout(|| match clear() {
 ///     Ok(()) => (),
 ///     Err(e) => console_log(&format!("An error occurred when attempting to clear the elements' styles: {e}"))
-/// });
+/// }, Duration::from_millis(600));
 ///
 /// Ok(())
-/// 
+///
 /// ```
 pub fn prepare_flip<T, U, V>(
     ids_to_nodes: HashMap<T, NodeRef<U>>,
     reflow_target: NodeRef<U>,
     transition_style: String,
-) -> Result<(
-    impl FnOnce() -> Result<(), FlipError<T>>,
-    impl FnOnce() -> Result<(), ClearError<T>>,
-), PrepareFlipError<T>>
+) -> Result<
+    (
+        impl FnOnce() -> Result<(), FlipError<T>>,
+        impl FnOnce() -> Result<(), ClearError<T>>,
+    ),
+    PrepareFlipError<T>,
+>
 where
     T: Hash + Eq + Clone + Display,
     U: Deref<Target = V> + ElementDescriptor + Clone,
@@ -88,9 +91,7 @@ where
         })
         .map_err(|ts| PrepareFlipError::CouldNotGetHtmlElement(ts))?;
 
-    let do_flip = move || {
-        flip(flip_positions, reflow_target, transition_style)
-    };
+    let do_flip = move || flip(flip_positions, reflow_target, transition_style);
 
     let clear = move || {
         let flip_nodes = BeginFlip::set_initial_nodes(ids_to_nodes);
@@ -112,19 +113,28 @@ where
     Ok((do_flip, clear))
 }
 
+/// Might occur when attempting to prepare a FLIP. When trying to obtain the position for a given
+/// element, if it is not possible to get it from the node reference, will return a vector of all
+/// IDs for which this is the case.
 #[derive(Debug)]
 pub enum PrepareFlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),
 }
 
-impl<T> Display for PrepareFlipError<T> where T: Display {
+impl<T> Display for PrepareFlipError<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CouldNotGetHtmlElement(ts) => {
                 write!(
                     f,
                     "Could not get element(s) from node reference(s) associated with {}",
-                    ts.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                    ts.iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 )
             }
         }
@@ -166,7 +176,9 @@ where
             let (original_x, original_y) = o;
             let (new_x, new_y) = n;
 
-            console_log(&format!("Original X is {original_x}, original Y is {original_y}"));
+            console_log(&format!(
+                "Original X is {original_x}, original Y is {original_y}"
+            ));
 
             console_log(&format!("New X is {new_x}, new Y is {new_y}"));
 
@@ -200,25 +212,42 @@ where
 
     match reflow_target.get() {
         Some(html_element) => Ok(html_element.clone().offset_width()),
-        None => Err(FlipError::CouldNotGetReflowTarget)
+        None => Err(FlipError::CouldNotGetReflowTarget),
     }?;
 
-    let flip_remove_transform_and_set_transition = flip_transform.remove_transform_and_set_transition(|t, node| match node.get() {
-        Some(html_element) => {
-            html_element.clone().style("transition", transition_style.clone());
-            html_element.clone().style("transform", "");
+    let flip_remove_transform_and_set_transition = flip_transform
+        .remove_transform_and_set_transition(|t, node| match node.get() {
+            Some(html_element) => {
+                html_element
+                    .clone()
+                    .style("transition", transition_style.clone());
+                html_element.clone().style("transform", "");
 
-            Ok(())
-        },
-        None => Err(t.clone())
-    });
+                Ok(())
+            }
+            None => Err(t.clone()),
+        });
 
-    flip_remove_transform_and_set_transition
-        .map_err(|ts| FlipError::CouldNotGetHtmlElement(ts))?;
+    flip_remove_transform_and_set_transition.map_err(|ts| FlipError::CouldNotGetHtmlElement(ts))?;
 
     Ok(())
 }
 
+/// Errors that might occur when FLIPping elements. Its variants and respective purposes are as
+/// follows:
+///
+/// `CouldNotGetHtmlElement(Vec<T>)`: contains all IDs for which getting an HTML element was not
+/// possible.
+///
+/// `CouldNotGetReflowTarget`: means that obtaining the HTML element from the reflow target was not
+/// possible.
+///
+/// `HashMapDiffError {
+///     present_in_original_but_not_new,
+///     present_in_new_but_not_original
+/// }`: might occur when attempting to obtain the offset of the original positions to the new ones.
+/// The `present_in_original_but_not_new` contains elements which had IDs in the original HashMap,
+/// but not the new, and its converse is the `present_in_new_but_not_original`.
 #[derive(Debug)]
 pub enum FlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),
@@ -229,38 +258,41 @@ pub enum FlipError<T> {
     },
 }
 
-impl<T> Display for FlipError<T> where T: Display {
+impl<T> Display for FlipError<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CouldNotGetReflowTarget => {
                 write!(f, "Could not get HTML element from given reflow target")
-            },
+            }
             Self::CouldNotGetHtmlElement(ts) => {
                 write!(
                     f,
                     "Could not get element(s) from node references(s) associated with {}",
-                    ts.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                    ts.iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 )
-            },
+            }
             Self::HashMapDiffError {
                 present_in_new_but_not_original,
-                present_in_original_but_not_new
+                present_in_original_but_not_new,
             } => {
                 write!(
                     f,
-
                     "An error occurred when trying to compute the differences in \
                     position between the original elements and the old elements. \
                     The elements present in the first hash map but not the second \
                     are {}, while the elements present in the second hash map but \
                     not the first are {}",
-
                     present_in_original_but_not_new
                         .iter()
                         .map(|t| t.to_string())
                         .collect::<Vec<_>>()
                         .join(", "),
-
                     present_in_new_but_not_original
                         .iter()
                         .map(|t| t.to_string())
@@ -272,19 +304,28 @@ impl<T> Display for FlipError<T> where T: Display {
     }
 }
 
+/// Might occur when clearing the styles of elements from the given node references. The single
+/// variant CouldNotGetHtmlElement(`Vec<T>`) contains all IDs for which elements could not be
+/// obtained from the given node references.
 #[derive(Debug)]
 pub enum ClearError<T> {
     CouldNotGetHtmlElement(Vec<T>),
 }
 
-impl<T> Display for ClearError<T> where T: Display {
+impl<T> Display for ClearError<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::CouldNotGetHtmlElement(ts) => {
                 write!(
                     f,
                     "Could not get element(s) for node reference(s) associated with {}",
-                    ts.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", ")
+                    ts.iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 )
             }
         }
@@ -298,7 +339,7 @@ impl BeginFlip {
     fn set_initial_nodes<T, U>(ids_to_nodes: HashMap<T, U>) -> FlipNodes<T, U>
     where
         T: Hash + Eq + Clone + Display,
-        U: Clone
+        U: Clone,
     {
         FlipNodes::new(ids_to_nodes)
     }
@@ -309,7 +350,8 @@ struct FlipNodes<T, U>(HashMap<T, U>);
 
 impl<T, U> Clone for FlipNodes<T, U>
 where
-    T: Hash + Eq + Clone + Display, U: Clone
+    T: Hash + Eq + Clone + Display,
+    U: Clone,
 {
     fn clone(&self) -> Self {
         let FlipNodes(hash_map) = self;
@@ -321,7 +363,7 @@ where
 impl<T, U> FlipNodes<T, U>
 where
     T: Hash + Eq + Clone + Display,
-    U: Clone
+    U: Clone,
 {
     fn new(ids_to_nodes: HashMap<T, U>) -> Self {
         FlipNodes(ids_to_nodes)
@@ -370,8 +412,10 @@ where
             return Err(problematic_keys);
         }
 
-        let positions: Result<HashMap<_, _>, T> =
-            positions.into_iter().map(|(k, v)| Ok((k, v.map_err(|t| t.clone())?))).collect();
+        let positions: Result<HashMap<_, _>, T> = positions
+            .into_iter()
+            .map(|(k, v)| Ok((k, v.map_err(|t| t.clone())?)))
+            .collect();
 
         Ok(FlipPositions::new(
             self.take_nodes(),
@@ -556,7 +600,8 @@ where
         self,
         resolver: impl Fn(&T, &U) -> Result<(), T>,
     ) -> Result<FlipRemoveTransformAndSetTransition<HashMap<T, U>>, Vec<T>> {
-        let remove_transform_and_set_transition_instructions = get_remove_transform_and_set_transition_instructions(self.nodes());
+        let remove_transform_and_set_transition_instructions =
+            get_remove_transform_and_set_transition_instructions(self.nodes());
 
         let mut problematic_keys = Vec::new();
 
@@ -567,12 +612,12 @@ where
 
                 match resolver(k, v) {
                     Ok(_) => (),
-                    Err(t) => problematic_keys.push(t.clone())
+                    Err(t) => problematic_keys.push(t.clone()),
                 }
             });
 
         if problematic_keys.len() > 0 {
-            return Err(problematic_keys)
+            return Err(problematic_keys);
         }
 
         Ok(FlipRemoveTransformAndSetTransition::new(self.take_nodes()))
@@ -737,7 +782,7 @@ struct FlipRemoveTransformAndSetTransition<T>(T);
 
 impl<T, U> FlipRemoveTransformAndSetTransition<HashMap<T, U>>
 where
-    T: Hash + Eq + Clone + Display
+    T: Hash + Eq + Clone + Display,
 {
     fn new(nodes: HashMap<T, U>) -> Self {
         FlipRemoveTransformAndSetTransition(nodes)
@@ -942,7 +987,8 @@ mod tests {
     fn get_remove_transform_instructions_returns_hash_map_with_all_given_keys() {
         let hash_map = HashMap::from([("a", 0), ("b", 2), ("c", 4)]);
 
-        let remove_transform_instructions = get_remove_transform_and_set_transition_instructions(&hash_map);
+        let remove_transform_instructions =
+            get_remove_transform_and_set_transition_instructions(&hash_map);
 
         match check_hash_map_key_diffs(&hash_map, &remove_transform_instructions) {
             Ok(()) => {
