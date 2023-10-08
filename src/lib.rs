@@ -7,6 +7,7 @@ use std::{
     fmt::Display,
     hash::Hash,
     ops::Deref,
+    cmp::{Eq, PartialEq},
 };
 
 use leptos::html::ElementDescriptor;
@@ -116,7 +117,7 @@ where
 /// Might occur when attempting to prepare a FLIP. When trying to obtain the position for a given
 /// element, if it is not possible to get it from the node reference, will return a vector of all
 /// IDs for which this is the case.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum PrepareFlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),
 }
@@ -248,7 +249,7 @@ where
 /// }`: might occur when attempting to obtain the offset of the original positions to the new ones.
 /// The `present_in_original_but_not_new` contains elements which had IDs in the original HashMap,
 /// but not the new, and its converse is the `present_in_new_but_not_original`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),
     CouldNotGetReflowTarget,
@@ -257,6 +258,28 @@ pub enum FlipError<T> {
         present_in_original_but_not_new: HashSet<T>,
     },
 }
+
+impl<T> PartialEq for FlipError<T> where T: Eq + Hash {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                FlipError::HashMapDiffError {
+                    present_in_new_but_not_original: first_original,
+                    present_in_original_but_not_new: second_original
+                },
+
+                FlipError::HashMapDiffError {
+                    present_in_new_but_not_original: first_new,
+                    present_in_original_but_not_new: second_new
+                }
+            ) => first_original == first_new && second_original == second_new,
+
+            (a, b) => a == b
+        }
+    }
+}
+
+impl<T> Eq for FlipError<T> where T: Eq + Hash {}
 
 impl<T> Display for FlipError<T>
 where
@@ -307,7 +330,7 @@ where
 /// Might occur when clearing the styles of elements from the given node references. The single
 /// variant CouldNotGetHtmlElement(`Vec<T>`) contains all IDs for which elements could not be
 /// obtained from the given node references.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ClearError<T> {
     CouldNotGetHtmlElement(Vec<T>),
 }
