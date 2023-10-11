@@ -15,8 +15,14 @@ the element element, such as "all 0.6s" (the CSS "transition" property), and ret
 
 The prepare_flip function should be called when the elements are in their initial positions.
 Then, flip should be called when immediately upon changing the positions of the NodeRefs'
-elements. After the transition has ended, clear should be called to remove the transition
-property from the given elements.
+elements. After the transition has ended, clear should be called to remove the applied
+styles property from the given elements. Please note, however, that this last step is
+optional, and an issue you might run into, if you use it after a fixed time interval, is the
+cutoff of a second transition that might have been triggered before the end of the current
+one. This happens due to the transition property being cleared as the second transition
+element approaches its destination, resulting in a visible jump cut. To avoid this, you
+might call the clear function only at the very end of all transitions.
+
 
 An example of usage is:
 

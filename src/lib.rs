@@ -117,6 +117,39 @@ where
 /// Might occur when attempting to prepare a FLIP. When trying to obtain the position for a given
 /// element, if it is not possible to get it from the node reference, will return a vector of all
 /// IDs for which this is the case.
+///
+/// ```ignore
+/// let (flip, clear) = prepare_flip(
+///     ids_to_nodes,
+///     reflow_target,
+///     "transform 0.6s".to_string()
+/// ).map_err(|e| format!("An error occurred when trying to prepare a FLIP: {3}"))?;
+///
+/// // Perform remaining FLIP actions
+/// // ...
+///
+/// Ok(())
+/// ```
+///
+/// ```ignore
+/// match prepare_flip(ids_to_nodes, reflow_target, "transform 0.6s".to_string) {
+///     Ok((flip, clear)) => {
+///         // Perform actions that will change the NodeRefs' elements' positions
+///         // ...
+///
+///         flip().map_err(|e| format!("An error occurred when trying to perform a FLIP transition: {e}"))?;
+///
+///         set_timeout(|| {
+///             match clear() {
+///                 Ok(()) => (),
+///                 Err(e) => console_log(&format!("An error occurred when attempting to clear FLIP styles: {e}"))
+///             }
+///         }, Duration::from_millis(600));
+///
+///         Ok(())
+///     }
+/// }
+/// ```
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum PrepareFlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),
