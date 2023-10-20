@@ -6,6 +6,8 @@ mod flip;
 mod begin_flip;
 mod flip_nodes;
 mod flip_positions;
+mod flip_diffs;
+mod flip_transform;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -13,121 +15,6 @@ use std::{
     hash::Hash,
     cmp::{Eq, PartialEq},
 };
-
-#[derive(Debug)]
-struct FlipDiffs<T, U, V> {
-    nodes: HashMap<T, U>,
-    diffs: HashMap<T, V>,
-}
-
-impl<T, U, V> FlipDiffs<T, U, V>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    fn new(nodes: HashMap<T, U>, diffs: HashMap<T, V>) -> Self {
-        FlipDiffs { nodes, diffs }
-    }
-
-    fn nodes(&self) -> &HashMap<T, U> {
-        let FlipDiffs { nodes, .. } = self;
-
-        &nodes
-    }
-
-    fn take_nodes(self) -> HashMap<T, U> {
-        let FlipDiffs { nodes, .. } = self;
-
-        nodes
-    }
-
-    fn diffs(&self) -> &HashMap<T, V> {
-        let FlipDiffs { diffs, .. } = self;
-
-        &diffs
-    }
-
-    fn set_transforms(
-        self,
-        resolver: impl Fn(&T, &U, &V) -> Result<(), T>,
-    ) -> Result<FlipTransform<T, U>, Vec<T>> {
-        let set_transform_and_transition_instructions =
-            get_set_transform_and_transition_instructions(self.nodes());
-
-        let mut problematic_keys = Vec::new();
-
-        set_transform_and_transition_instructions
-            .iter()
-            .for_each(|(k, v)| {
-                let SetTransformAndTransition(v) = v;
-
-                match resolver(k, v, self.diffs().get(k).unwrap()) {
-                    Ok(()) => {}
-                    Err(t) => {
-                        problematic_keys.push(t.clone());
-                    }
-                }
-            });
-
-        if problematic_keys.len() > 0 {
-            return Err(problematic_keys);
-        }
-
-        Ok(FlipTransform::new(self.take_nodes()))
-    }
-}
-
-#[derive(Debug)]
-struct FlipTransform<T, U> {
-    nodes: HashMap<T, U>,
-}
-
-impl<T, U> FlipTransform<T, U>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    fn new(nodes: HashMap<T, U>) -> Self {
-        FlipTransform { nodes }
-    }
-
-    fn nodes(&self) -> &HashMap<T, U> {
-        let FlipTransform { nodes } = self;
-
-        &nodes
-    }
-
-    fn take_nodes(self) -> HashMap<T, U> {
-        let FlipTransform { nodes } = self;
-
-        nodes
-    }
-
-    fn remove_transform_and_set_transition(
-        self,
-        resolver: impl Fn(&T, &U) -> Result<(), T>,
-    ) -> Result<FlipRemoveTransformAndSetTransition<HashMap<T, U>>, Vec<T>> {
-        let remove_transform_and_set_transition_instructions =
-            get_remove_transform_and_set_transition_instructions(self.nodes());
-
-        let mut problematic_keys = Vec::new();
-
-        remove_transform_and_set_transition_instructions
-            .iter()
-            .for_each(|(k, v)| {
-                let FlipRemoveTransformAndSetTransition(v) = v;
-
-                match resolver(k, v) {
-                    Ok(_) => (),
-                    Err(t) => problematic_keys.push(t.clone()),
-                }
-            });
-
-        if problematic_keys.len() > 0 {
-            return Err(problematic_keys);
-        }
-
-        Ok(FlipRemoveTransformAndSetTransition::new(self.take_nodes()))
-    }
-}
 
 fn get_compute_position_instructions<T, U>(
     to_compute: &HashMap<T, U>,
@@ -337,7 +224,7 @@ mod tests {
         check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
         get_diff_positions_instructions, get_remove_transform_and_set_transition_instructions,
         get_set_transform_and_transition_instructions, begin_flip::BeginFlip, ClearStyle, ComputePosition,
-        DiffPositions, FlipDiffs, flip_nodes::FlipNodes, FlipRemoveTransformAndSetTransition, HashMapDiffError,
+        DiffPositions, flip_diffs::FlipDiffs, flip_nodes::FlipNodes, FlipRemoveTransformAndSetTransition, HashMapDiffError,
         SetTransformAndTransition,
     };
     use std::collections::{HashMap, HashSet};

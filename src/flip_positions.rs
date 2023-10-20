@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    FlipDiffs,
+    flip_diffs::FlipDiffs,
     DiffPositions,
     get_diff_positions_instructions,
     HashMapDiffError
