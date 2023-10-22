@@ -6,9 +6,9 @@ use std::{
 
 use crate::{
     flip_diffs::FlipDiffs,
-    DiffPositions,
-    get_diff_positions_instructions,
-    HashMapDiffError
+    diff_positions::DiffPositions,
+    diff_positions::get_diff_positions_instructions,
+    hash_map_diff_error::HashMapDiffError
 };
 
 #[derive(Debug, Clone)]

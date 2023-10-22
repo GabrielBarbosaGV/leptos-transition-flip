@@ -4,8 +4,8 @@ use std::{
     hash::Hash
 };
 
-use crate::{
-    FlipRemoveTransformAndSetTransition,
+use crate::remove_transform_and_set_transition::{
+    RemoveTransformAndSetTransition,
     get_remove_transform_and_set_transition_instructions
 };
 
@@ -37,7 +37,7 @@ where
     pub fn remove_transform_and_set_transition(
         self,
         resolver: impl Fn(&T, &U) -> Result<(), T>,
-    ) -> Result<FlipRemoveTransformAndSetTransition<HashMap<T, U>>, Vec<T>> {
+    ) -> Result<RemoveTransformAndSetTransition<HashMap<T, U>>, Vec<T>> {
         let remove_transform_and_set_transition_instructions =
             get_remove_transform_and_set_transition_instructions(self.nodes());
 
@@ -46,7 +46,7 @@ where
         remove_transform_and_set_transition_instructions
             .iter()
             .for_each(|(k, v)| {
-                let FlipRemoveTransformAndSetTransition(v) = v;
+                let RemoveTransformAndSetTransition(v) = v;
 
                 match resolver(k, v) {
                     Ok(_) => (),
@@ -58,7 +58,7 @@ where
             return Err(problematic_keys);
         }
 
-        Ok(FlipRemoveTransformAndSetTransition::new(self.take_nodes()))
+        Ok(RemoveTransformAndSetTransition::new(self.take_nodes()))
     }
 }
 

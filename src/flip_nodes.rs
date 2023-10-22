@@ -7,9 +7,9 @@ use std::{
 use crate::{
     flip_positions::FlipPositions,
     ClearStyle,
-    ComputePosition,
+    compute_position::ComputePosition,
     get_clear_style_instructions,
-    get_compute_position_instructions
+    compute_position::get_compute_position_instructions
 };
 
 #[derive(Debug)]

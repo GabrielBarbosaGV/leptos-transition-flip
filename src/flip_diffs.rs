@@ -6,8 +6,10 @@ use std::{
 
 use crate::{
     flip_transform::FlipTransform,
-    SetTransformAndTransition,
-    get_set_transform_and_transition_instructions
+    set_transform::{
+        SetTransform,
+        get_set_transform_instructions
+    }
 };
 
 #[derive(Debug)]
@@ -47,14 +49,14 @@ where
         resolver: impl Fn(&T, &U, &V) -> Result<(), T>,
     ) -> Result<FlipTransform<T, U>, Vec<T>> {
         let set_transform_and_transition_instructions =
-            get_set_transform_and_transition_instructions(self.nodes());
+            get_set_transform_instructions(self.nodes());
 
         let mut problematic_keys = Vec::new();
 
         set_transform_and_transition_instructions
             .iter()
             .for_each(|(k, v)| {
-                let SetTransformAndTransition(v) = v;
+                let SetTransform(v) = v;
 
                 match resolver(k, v, self.diffs().get(k).unwrap()) {
                     Ok(()) => {}

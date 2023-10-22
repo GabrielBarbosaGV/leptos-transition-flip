@@ -13,7 +13,7 @@ use std::{
 };
 
 use crate::{
-    HashMapDiffError,
+    hash_map_diff_error::HashMapDiffError,
     begin_flip::BeginFlip,
     flip_positions::FlipPositions
 };

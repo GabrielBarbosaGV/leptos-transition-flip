@@ -8,190 +8,18 @@ mod flip_nodes;
 mod flip_positions;
 mod flip_diffs;
 mod flip_transform;
+mod compute_position;
+mod diff_positions;
+mod hash_map_diff_error;
+mod set_transform;
+mod remove_transform_and_set_transition;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt::Display,
     hash::Hash,
     cmp::{Eq, PartialEq},
 };
-
-fn get_compute_position_instructions<T, U>(
-    to_compute: &HashMap<T, U>,
-) -> HashMap<&T, ComputePosition<&U>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    to_compute
-        .iter()
-        .map(|(k, v)| (k, ComputePosition(v)))
-        .collect()
-}
-
-struct ComputePosition<T>(T);
-
-fn get_diff_positions_instructions<'a, T, U>(
-    original: &'a HashMap<T, U>,
-    new: &'a HashMap<T, U>,
-) -> Result<HashMap<T, DiffPositions<&'a U>>, HashMapDiffError<T>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    check_hash_map_key_diffs(&original, &new)?;
-
-    Ok(original
-        .keys()
-        .map(|k| {
-            let original = original.get(k).unwrap();
-            let new = new.get(k).unwrap();
-
-            (k.clone(), DiffPositions(original, new))
-        })
-        .collect())
-}
-
-#[derive(Debug)]
-struct DiffPositions<T>(T, T);
-
-impl<T> PartialEq<DiffPositions<&T>> for DiffPositions<T>
-where
-    T: Eq,
-{
-    fn eq(&self, other: &DiffPositions<&T>) -> bool {
-        let DiffPositions(original, new) = self;
-        let DiffPositions(original_ref, new_ref) = other;
-
-        original == *original_ref && new == *new_ref
-    }
-}
-
-impl<T> PartialEq<DiffPositions<T>> for DiffPositions<T>
-where
-    T: Eq,
-{
-    fn eq(&self, other: &DiffPositions<T>) -> bool {
-        let DiffPositions(original, new) = self;
-        let DiffPositions(second_original, second_new) = other;
-
-        original == second_original && new == second_new
-    }
-}
-
-#[derive(Debug)]
-struct HashMapDiffError<T> {
-    present_in_original_but_not_new: HashSet<T>,
-    present_in_new_but_not_original: HashSet<T>,
-}
-
-impl<T> PartialEq for HashMapDiffError<T>
-where
-    T: Eq + Hash,
-{
-    fn eq(&self, other: &Self) -> bool {
-        let HashMapDiffError {
-            present_in_original_but_not_new: first_original,
-            present_in_new_but_not_original: second_original,
-        } = self;
-        let HashMapDiffError {
-            present_in_original_but_not_new: first_new,
-            present_in_new_but_not_original: second_new,
-        } = other;
-
-        first_original == first_new && second_original == second_new
-    }
-}
-
-fn check_hash_map_key_diffs<'a, T, U, V>(
-    original: &'a HashMap<T, U>,
-    new: &'a HashMap<T, V>,
-) -> Result<(), HashMapDiffError<T>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    let original_keys: HashSet<_> = original.keys().map(|t| t.clone()).collect();
-    let new_keys: HashSet<_> = new.keys().map(|t| t.clone()).collect();
-
-    if original_keys == new_keys {
-        Ok(())
-    } else {
-        let present_in_original_but_not_new = original_keys
-            .difference(&new_keys)
-            .map(|t| t.clone())
-            .collect();
-        let present_in_new_but_not_original = new_keys
-            .difference(&original_keys)
-            .map(|t| t.clone())
-            .collect();
-
-        Err(HashMapDiffError {
-            present_in_original_but_not_new,
-            present_in_new_but_not_original,
-        })
-    }
-}
-
-fn get_set_transform_and_transition_instructions<T, U>(
-    to_set: &HashMap<T, U>,
-) -> HashMap<T, SetTransformAndTransition<&U>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    to_set
-        .iter()
-        .map(|(k, v)| (k.clone(), SetTransformAndTransition(v)))
-        .collect()
-}
-
-#[derive(Debug)]
-struct SetTransformAndTransition<T>(T);
-
-impl<T> PartialEq<SetTransformAndTransition<T>> for SetTransformAndTransition<T>
-where
-    T: Eq,
-{
-    fn eq(&self, other: &SetTransformAndTransition<T>) -> bool {
-        let SetTransformAndTransition(original) = self;
-        let SetTransformAndTransition(new) = other;
-
-        original == new
-    }
-}
-
-fn get_remove_transform_and_set_transition_instructions<T, U>(
-    to_remove: &HashMap<T, U>,
-) -> HashMap<T, FlipRemoveTransformAndSetTransition<&U>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    to_remove
-        .iter()
-        .map(|(k, v)| (k.clone(), FlipRemoveTransformAndSetTransition(v)))
-        .collect()
-}
-
-#[derive(Debug)]
-struct FlipRemoveTransformAndSetTransition<T>(T);
-
-impl<T, U> FlipRemoveTransformAndSetTransition<HashMap<T, U>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    fn new(nodes: HashMap<T, U>) -> Self {
-        FlipRemoveTransformAndSetTransition(nodes)
-    }
-}
-
-impl<T> PartialEq<FlipRemoveTransformAndSetTransition<T>> for FlipRemoveTransformAndSetTransition<T>
-where
-    T: Eq,
-{
-    fn eq(&self, other: &FlipRemoveTransformAndSetTransition<T>) -> bool {
-        let FlipRemoveTransformAndSetTransition(original) = self;
-        let FlipRemoveTransformAndSetTransition(new) = other;
-
-        original == new
-    }
-}
 
 fn get_clear_style_instructions<T, U>(to_clear: &HashMap<T, U>) -> HashMap<T, ClearStyle<&U>>
 where
@@ -221,11 +49,11 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        check_hash_map_key_diffs, get_clear_style_instructions, get_compute_position_instructions,
-        get_diff_positions_instructions, get_remove_transform_and_set_transition_instructions,
-        get_set_transform_and_transition_instructions, begin_flip::BeginFlip, ClearStyle, ComputePosition,
-        DiffPositions, flip_diffs::FlipDiffs, flip_nodes::FlipNodes, FlipRemoveTransformAndSetTransition, HashMapDiffError,
-        SetTransformAndTransition,
+        hash_map_diff_error::check_hash_map_key_diffs, get_clear_style_instructions, compute_position::get_compute_position_instructions,
+        diff_positions::get_diff_positions_instructions, remove_transform_and_set_transition::get_remove_transform_and_set_transition_instructions,
+        set_transform::get_set_transform_instructions, begin_flip::BeginFlip, ClearStyle, compute_position::ComputePosition,
+        diff_positions::DiffPositions, flip_diffs::FlipDiffs, flip_nodes::FlipNodes, remove_transform_and_set_transition::RemoveTransformAndSetTransition, hash_map_diff_error::HashMapDiffError,
+        set_transform::SetTransform,
     };
     use std::collections::{HashMap, HashSet};
 
@@ -358,14 +186,14 @@ mod tests {
         let hash_map = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
 
         let set_transform_and_transition_instructions =
-            get_set_transform_and_transition_instructions(&hash_map);
+            get_set_transform_instructions(&hash_map);
 
         match check_hash_map_key_diffs(&hash_map, &set_transform_and_transition_instructions) {
             Ok(()) => {
                 hash_map.keys().for_each(|k| {
                     assert_eq!(
                         set_transform_and_transition_instructions.get(k).unwrap(),
-                        &SetTransformAndTransition(hash_map.get(k).unwrap())
+                        &SetTransform(hash_map.get(k).unwrap())
                     );
                 });
             }
@@ -386,7 +214,7 @@ mod tests {
             Ok(()) => {
                 hash_map.keys().for_each(|k| {
                     assert_eq!(
-                        &FlipRemoveTransformAndSetTransition(hash_map.get(k).unwrap()),
+                        &RemoveTransformAndSetTransition(hash_map.get(k).unwrap()),
                         remove_transform_instructions.get(k).unwrap()
                     );
                 });
