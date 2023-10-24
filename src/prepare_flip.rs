@@ -1,21 +1,15 @@
 use crate::{
     begin_flip::BeginFlip,
-    flip::{
-        flip,
-        FlipError
-    }
+    flip::{flip, FlipError},
 };
 
 use std::fmt::Display;
 
-use leptos::{
-    html::ElementDescriptor,
-    NodeRef
-};
+use leptos::{html::ElementDescriptor, NodeRef};
 
 use web_sys::HtmlElement;
 
-use std::{collections::HashMap, ops::Deref, hash::Hash};
+use std::{collections::HashMap, hash::Hash, ops::Deref};
 
 /// Main function of this crate. Returns a [`Result`] whose Ok is a pair of closures, `(flip,
 /// clear)`, which performs the transition when an element's position is changed, and clears the
@@ -206,4 +200,3 @@ where
         }
     }
 }
-

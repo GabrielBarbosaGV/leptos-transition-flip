@@ -1,15 +1,9 @@
-use std::{
-    fmt::Display,
-    hash::Hash,
-    collections::HashMap,
-};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 use crate::{
+    clear_style::get_clear_style_instructions, clear_style::ClearStyle,
+    compute_position::get_compute_position_instructions, compute_position::ComputePosition,
     flip_positions::FlipPositions,
-    ClearStyle,
-    compute_position::ComputePosition,
-    get_clear_style_instructions,
-    compute_position::get_compute_position_instructions
 };
 
 #[derive(Debug)]
@@ -131,4 +125,3 @@ where
         self.nodes() == other.nodes()
     }
 }
-

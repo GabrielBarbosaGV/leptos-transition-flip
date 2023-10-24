@@ -1,14 +1,8 @@
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    hash::Hash
-};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 use crate::{
-    flip_diffs::FlipDiffs,
-    diff_positions::DiffPositions,
-    diff_positions::get_diff_positions_instructions,
-    hash_map_diff_error::HashMapDiffError
+    diff_positions::get_diff_positions_instructions, diff_positions::DiffPositions,
+    flip_diffs::FlipDiffs, hash_map_diff_error::HashMapDiffError,
 };
 
 #[derive(Debug, Clone)]
@@ -54,4 +48,3 @@ where
         Ok(FlipDiffs::new(self.take_nodes(), diffs))
     }
 }
-

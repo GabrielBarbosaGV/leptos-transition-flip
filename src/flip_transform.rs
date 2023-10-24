@@ -1,12 +1,7 @@
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    hash::Hash
-};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 use crate::remove_transform_and_set_transition::{
-    RemoveTransformAndSetTransition,
-    get_remove_transform_and_set_transition_instructions
+    get_remove_transform_and_set_transition_instructions, RemoveTransformAndSetTransition,
 };
 
 #[derive(Debug)]
@@ -61,4 +56,3 @@ where
         Ok(RemoveTransformAndSetTransition::new(self.take_nodes()))
     }
 }
-

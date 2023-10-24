@@ -1,15 +1,8 @@
-use std::{
-    collections::HashMap,
-    hash::Hash,
-    fmt::Display
-};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 use crate::{
     flip_transform::FlipTransform,
-    set_transform::{
-        SetTransform,
-        get_set_transform_instructions
-    }
+    set_transform::{get_set_transform_instructions, SetTransform},
 };
 
 #[derive(Debug)]

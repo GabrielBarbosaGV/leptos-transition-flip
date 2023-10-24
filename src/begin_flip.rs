@@ -1,10 +1,6 @@
 use crate::flip_nodes::FlipNodes;
 
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    hash::Hash
-};
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 
 #[derive(Debug)]
 pub(crate) struct BeginFlip;

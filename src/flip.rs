@@ -1,21 +1,11 @@
-use leptos::{
-    NodeRef,
-    html::ElementDescriptor
-};
+use leptos::{html::ElementDescriptor, NodeRef};
 
 use web_sys::HtmlElement;
 
-use std::{
-    fmt::Display,
-    hash::Hash,
-    collections::HashSet,
-    ops::Deref
-};
+use std::{collections::HashSet, fmt::Display, hash::Hash, ops::Deref};
 
 use crate::{
-    hash_map_diff_error::HashMapDiffError,
-    begin_flip::BeginFlip,
-    flip_positions::FlipPositions
+    begin_flip::BeginFlip, flip_positions::FlipPositions, hash_map_diff_error::HashMapDiffError,
 };
 
 pub(crate) fn flip<T, U, V>(
@@ -127,22 +117,24 @@ pub enum FlipError<T> {
     },
 }
 
-impl<T> PartialEq for FlipError<T> where T: Eq + Hash {
+impl<T> PartialEq for FlipError<T>
+where
+    T: Eq + Hash,
+{
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
                 FlipError::HashMapDiffError {
                     present_in_new_but_not_original: first_original,
-                    present_in_original_but_not_new: second_original
+                    present_in_original_but_not_new: second_original,
                 },
-
                 FlipError::HashMapDiffError {
                     present_in_new_but_not_original: first_new,
-                    present_in_original_but_not_new: second_new
-                }
+                    present_in_original_but_not_new: second_new,
+                },
             ) => first_original == first_new && second_original == second_new,
 
-            (a, b) => a == b
+            (a, b) => a == b,
         }
     }
 }
@@ -194,4 +186,3 @@ where
         }
     }
 }
-
