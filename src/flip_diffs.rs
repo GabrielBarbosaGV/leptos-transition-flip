@@ -66,3 +66,25 @@ where
         Ok(FlipTransform::new(self.take_nodes()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::FlipDiffs;
+    use std::collections::HashMap;
+
+    #[test]
+    fn set_transforms_returns_flip_transform_and_position() {
+        let nodes = HashMap::from([("a", 1), ("b", 2), ("c", 3)]);
+        let diffs = HashMap::from([("a", 10), ("b", 20), ("c", 30)]);
+
+        let cloned_nodes = nodes.clone();
+
+        let flip_diffs = FlipDiffs::new(cloned_nodes, diffs);
+
+        let flip_transform_and_transition = flip_diffs
+            .set_transforms(|_, _, _| Ok(()))
+            .expect("Setting transforms and transitions should not fail");
+
+        assert_eq!(&nodes, flip_transform_and_transition.nodes());
+    }
+}
