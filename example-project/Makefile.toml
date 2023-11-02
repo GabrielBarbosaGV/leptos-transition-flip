@@ -1,0 +1,8 @@
+[tasks.tailwind]
+command = "npx"
+args = [ "tailwindcss", "-o", "./dist/styles.css" ]
+watch = { watch_for_changes = true }
+
+[tasks.trunk]
+command = "trunk"
+args = [ "serve", "--open" ]
