@@ -41,3 +41,5 @@ let _ = flip();
 
 set_timeout(|| { let _ = clear(); }, Duration::from_millis(600));
 ```
+
+And a full example project can be found [here](./example-project/).
