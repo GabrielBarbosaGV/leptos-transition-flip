@@ -1,4 +1,4 @@
-use leptos::{html::ElementDescriptor, NodeRef};
+use leptos::{html::ElementDescriptor, NodeRef, IntoStyle};
 
 use web_sys::HtmlElement;
 
@@ -11,7 +11,7 @@ use crate::{
 pub(crate) fn flip<T, U, V>(
     flip_positions: FlipPositions<T, NodeRef<U>, (f64, f64)>,
     reflow_target: NodeRef<U>,
-    transition_style: String,
+    transition_style: impl IntoStyle + Clone,
 ) -> Result<(), FlipError<T>>
 where
     T: Hash + Eq + Clone + Display,
@@ -59,7 +59,7 @@ where
     let flip_transform = flip_diffs
         .set_transforms(|t, node, (delta_x, delta_y)| match node.get() {
             Some(html_element) => {
-                html_element
+                let _ = html_element
                     .clone()
                     .style("transform", &format!("translate({delta_x}px, {delta_y}px)"));
 
@@ -77,10 +77,10 @@ where
     let flip_remove_transform_and_set_transition = flip_transform
         .remove_transform_and_set_transition(|t, node| match node.get() {
             Some(html_element) => {
-                html_element
+                let _ = html_element
                     .clone()
                     .style("transition", transition_style.clone());
-                html_element.clone().style("transform", "");
+                let _ = html_element.clone().style("transform", "");
 
                 Ok(())
             }

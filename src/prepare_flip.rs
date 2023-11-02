@@ -98,7 +98,7 @@ where
         flip_nodes
             .clear_styles(|k, v| match v.get() {
                 Some(html_element) => {
-                    html_element.clone().style("transition", "");
+                    let _ = html_element.clone().style("transition", "");
 
                     Ok(())
                 }
