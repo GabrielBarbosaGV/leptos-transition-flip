@@ -7,9 +7,10 @@ Enables translate-based FLIP animations for elements referenced by NodeRefs.
 
 ## How to use
 The single function exposed by this crate is responsible for taking the initial positions
-of the given HashMap of arbitrary IDs (T that must be Hash + Eq + Clone) to their
-NodeRefs, a [DOM reflow](https://stackoverflow.com/questions/27637184/what-is-dom-reflow)
-target, as well as a transition property to determine the smoothing of the movement of
+of the given HashMap of arbitrary IDs (T that must be Hash + Eq + Clone + Display) to
+their NodeRefs,
+a [DOM reflow](https://stackoverflow.com/questions/27637184/what-is-dom-reflow) target,
+as well as a transition property to determine the smoothing of the movement of
 the element element, such as "all 0.6s" (the CSS "transition" property), and return a
 (flip, clear) tuple.
 
