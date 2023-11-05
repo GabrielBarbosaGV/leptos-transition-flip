@@ -15,7 +15,7 @@ the element element, such as "all 0.6s" (the CSS "transition" property), and ret
 (flip, clear) tuple.
 
 The prepare_flip function should be called when the elements are in their initial positions.
-Then, flip should be called when immediately upon changing the positions of the NodeRefs'
+Then, flip should be called immediately upon changing the positions of the NodeRefs'
 elements. After the transition has ended, clear should be called to remove the applied
 styles property from the given elements. Please note, however, that this last step is
 optional, and an issue you might run into, if you use it after a fixed time interval, is the
