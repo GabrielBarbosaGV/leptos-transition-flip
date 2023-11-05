@@ -74,11 +74,17 @@ fn App() -> impl IntoView {
                             // aformentioned mapping, the node_ref of the reflow target, and,
                             // finally, the transition property to be set for the target HTML
                             // elements in FLIPping.
-                            let (flip, clear) = prepare_flip(
+                            let (flip, clear) = match prepare_flip(
                                 ids_to_node_refs,
                                 reflow_target,
-                                "transform 0.6s".to_string()
-                            ).unwrap();
+                                "transform 0.6s"
+                            ) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    println!("An error has occurred when preparing a FLIP: {:?}", e);
+                                    return
+                                }
+                            };
 
                             // Get item that will be removed>
                             let item = left_items().into_iter().filter(|(i, _)| i().id == id).next().unwrap();
@@ -95,18 +101,15 @@ fn App() -> impl IntoView {
                                 items.push(item);
                             });
 
-
                             // Do FLIP.
-                            match flip().map_err(|err| format!("An error has occurred when attempting a FLIP: {:?}", err)) {
-                                Ok(()) => (),
-                                Err(err) => println!("{err}")
+                            if let Err(err) = flip() {
+                                println!("An error has occurred when attempting a FLIP: {:?}", err);
                             }
 
                             // Clear styles after timeout.
                             set_timeout(|| {
-                                match clear().map_err(|err| format!("An error has occurred when attempting to clear the elements' transition styles: {:?}", err)) {
-                                    Ok(()) => (),
-                                    Err(err) => println!("{err}")
+                                if let Err(err) = clear() {
+                                    println!("An error has occurred when attempting to clear the elements' transition styles: {:?}", err);
                                 }
                             }, Duration::from_millis(600));
                         };
@@ -139,7 +142,13 @@ fn App() -> impl IntoView {
                                 .map(|ListItem { id, node_ref, .. }| (id, node_ref))
                                 .collect::<HashMap<_, _>>();
 
-                            let (flip, clear) = prepare_flip(ids_to_node_refs, reflow_target, "transform 0.6s".to_string()).unwrap();
+                            let (flip, clear) = match prepare_flip(ids_to_node_refs, reflow_target, "transform 0.6s") {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    println!("An error has occurred when preparing a FLIP: {:?}", e);
+                                    return
+                                }
+                            };
 
                             let item = right_items().into_iter().filter(|(i, _)| i().id == id).next().unwrap();
 
@@ -153,9 +162,15 @@ fn App() -> impl IntoView {
                                 items.push(item);
                             });
 
-                            let _ = flip();
+                            if let Err(err) = flip() {
+                                println!("An error has occurred when attempting a FLIP: {:?}", err);
+                            }
 
-                            set_timeout(|| { let _ = clear(); }, Duration::from_millis(600));
+                            set_timeout(|| {
+                                if let Err(err) = clear() {
+                                    println!("An error has occurred when attempting to clear the elements' transition styles: {:?}", err);
+                                }
+                            }, Duration::from_millis(600));
                         };
 
                         view! {

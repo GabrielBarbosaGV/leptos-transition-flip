@@ -5,7 +5,7 @@ use crate::{
 
 use std::fmt::Display;
 
-use leptos::{html::ElementDescriptor, NodeRef};
+use leptos::{html::ElementDescriptor, NodeRef, IntoStyle};
 
 use web_sys::HtmlElement;
 
@@ -61,7 +61,7 @@ use std::{collections::HashMap, hash::Hash, ops::Deref};
 pub fn prepare_flip<T, U, V>(
     ids_to_nodes: HashMap<T, NodeRef<U>>,
     reflow_target: NodeRef<U>,
-    transition_style: String,
+    transition_style: impl IntoStyle + Clone,
 ) -> Result<
     (
         impl FnOnce() -> Result<(), FlipError<T>>,
