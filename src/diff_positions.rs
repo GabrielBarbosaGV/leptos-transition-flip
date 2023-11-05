@@ -51,14 +51,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        get_diff_positions_instructions,
-        DiffPositions
-    };
-    use crate::hash_map_diff_error::{
-        check_hash_map_key_diffs,
-        HashMapDiffError
-    };
+    use super::{get_diff_positions_instructions, DiffPositions};
+    use crate::hash_map_diff_error::{check_hash_map_key_diffs, HashMapDiffError};
     use std::collections::HashMap;
 
     #[test]
@@ -164,5 +158,4 @@ mod tests {
             Ok(get_diff_positions_instructions(original, new)?)
         });
     }
-
 }

@@ -34,13 +34,11 @@ fn App() -> impl IntoView {
             .into_iter()
             .enumerate()
             .map(|(index, text)| {
-                create_signal(
-                    ListItem {
-                        id: index,
-                        text: text.to_string(),
-                        node_ref: create_node_ref::<Div>(),
-                    },
-                )
+                create_signal(ListItem {
+                    id: index,
+                    text: text.to_string(),
+                    node_ref: create_node_ref::<Div>(),
+                })
             })
             .collect::<Vec<_>>(),
     );

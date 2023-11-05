@@ -5,7 +5,7 @@ use crate::{
 
 use std::fmt::Display;
 
-use leptos::{html::ElementDescriptor, NodeRef, IntoStyle};
+use leptos::{html::ElementDescriptor, IntoStyle, NodeRef};
 
 use web_sys::HtmlElement;
 

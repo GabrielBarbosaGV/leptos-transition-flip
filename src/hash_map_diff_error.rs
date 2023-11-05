@@ -59,12 +59,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{
-        HashSet,
-        HashMap
-    };
+    use std::collections::{HashMap, HashSet};
 
-    use super::{HashMapDiffError, check_hash_map_key_diffs};
+    use super::{check_hash_map_key_diffs, HashMapDiffError};
 
     #[test]
     fn check_hash_maps_key_diffs_returns_error_when_keys_differ() {

@@ -16,10 +16,7 @@ pub(crate) struct ComputePosition<T>(pub T);
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        ComputePosition,
-        get_compute_position_instructions
-    };
+    use super::{get_compute_position_instructions, ComputePosition};
 
     use std::collections::HashMap;
 
@@ -42,5 +39,4 @@ mod tests {
             });
         }
     }
-
 }

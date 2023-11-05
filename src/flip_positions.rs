@@ -51,8 +51,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use crate::begin_flip::BeginFlip;
+    use std::collections::HashMap;
 
     #[test]
     fn compute_diffs_return_flip_diffs() {

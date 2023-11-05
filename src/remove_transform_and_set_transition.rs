@@ -37,10 +37,9 @@ where
 }
 
 #[cfg(test)]
-mod tests { 
+mod tests {
     use super::{
-        get_remove_transform_and_set_transition_instructions,
-        RemoveTransformAndSetTransition
+        get_remove_transform_and_set_transition_instructions, RemoveTransformAndSetTransition,
     };
 
     use crate::hash_map_diff_error::check_hash_map_key_diffs;

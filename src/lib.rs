@@ -15,5 +15,5 @@ mod prepare_flip;
 mod remove_transform_and_set_transition;
 mod set_transform;
 
-pub use prepare_flip::*;
 pub use flip::FlipError;
+pub use prepare_flip::*;

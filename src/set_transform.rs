@@ -29,10 +29,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        get_set_transform_instructions,
-        SetTransform
-    };
+    use super::{get_set_transform_instructions, SetTransform};
     use crate::hash_map_diff_error::check_hash_map_key_diffs;
     use std::collections::HashMap;
     #[test]
