@@ -107,6 +107,38 @@ where
 /// }`: might occur when attempting to obtain the offset of the original positions to the new ones.
 /// The `present_in_original_but_not_new` contains elements which had IDs in the original HashMap,
 /// but not the new, and its converse is the `present_in_new_but_not_original`.
+///
+/// ```ignore
+/// let (flip, clear) = prepare_flip(ids_to_nodes, reflow_target, "transform 0.6s")
+///     .map_err(|e| format!("An error has occurred when attempting to prepare a flip: {e}"))?;
+///
+/// // Perform actions that change the nodes' positions in the DOM ...
+///
+/// if let Err(err) = flip() {
+///     let err = match err {
+///         FlipError::CouldNotGetHtmlElement(ids) => {
+///             "Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]"
+///         },
+///         FlipError::CouldNotGetReflowTarget => {
+///             "Getting the HTML elements for the reflow target NodeRef was not possible"
+///         },
+///         FlipError::HashMapDiffError {
+///             present_in_original_but_not_new,
+///             present_in_new_but_not_original
+///         } => "\
+///                 Diffing the positions of the HTML elements was not possible, \
+///                 as the [{present_in_original_but_not_new}] IDs were found in \
+///                 the first HashMap, but not the second, and the converse was \
+///                 the case for [{present_in_new_but_not_original}].\
+///         "
+///     }.to_string()
+///
+///     return Err(err)
+/// }
+///
+/// // ...
+///
+/// ```
 #[derive(Debug, Clone)]
 pub enum FlipError<T> {
     CouldNotGetHtmlElement(Vec<T>),

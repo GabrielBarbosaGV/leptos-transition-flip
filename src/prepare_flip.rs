@@ -120,20 +120,7 @@ where
 /// IDs for which this is the case.
 ///
 /// ```ignore
-/// let (flip, clear) = prepare_flip(
-///     ids_to_nodes,
-///     reflow_target,
-///     "transform 0.6s".to_string()
-/// ).map_err(|e| format!("An error occurred when trying to prepare a FLIP: {3}"))?;
-///
-/// // Perform remaining FLIP actions
-/// // ...
-///
-/// Ok(())
-/// ```
-///
-/// ```ignore
-/// match prepare_flip(ids_to_nodes, reflow_target, "transform 0.6s".to_string) {
+/// match prepare_flip(ids_to_nodes, reflow_target, "transform 0.6s") {
 ///     Ok((flip, clear)) => {
 ///         // Perform actions that will change the NodeRefs' elements' positions
 ///         // ...
@@ -143,11 +130,15 @@ where
 ///         set_timeout(|| {
 ///             match clear() {
 ///                 Ok(()) => (),
-///                 Err(e) => console_log(&format!("An error occurred when attempting to clear FLIP styles: {e}"))
+///                 Err(e) => println!(&format!("An error occurred when attempting to clear FLIP styles: {e}"))
 ///             }
 ///         }, Duration::from_millis(600));
 ///
 ///         Ok(())
+///     },
+///
+///     Err(PrepareFlipError::CouldNotGetHtmlElement(ids)) => {
+///         Err("Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]")
 ///     }
 /// }
 /// ```
@@ -177,8 +168,21 @@ where
 }
 
 /// Might occur when clearing the styles of elements from the given node references. The single
-/// variant CouldNotGetHtmlElement(`Vec<T>`) contains all IDs for which elements could not be
+/// variant, CouldNotGetHtmlElement(`Vec<T>`), contains all IDs for which elements could not be
 /// obtained from the given node references.
+///
+/// ```ignore
+/// let (flip, clear) = prepare_flip(ids_to_nodes, reflow_target, "transform 0.6s")
+///     .map_err(|e| format!("An error has occurred when attempting to prepare a flip: {e}"))?;
+///
+/// // ...
+///
+/// set_timeout(|| {
+///     if let Err(ClearError::CouldNotGetHtmlElement(ids)) = clear() {
+///         println!("Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]");
+///     }
+/// })
+/// ```
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ClearError<T> {
     CouldNotGetHtmlElement(Vec<T>),
