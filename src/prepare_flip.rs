@@ -37,10 +37,12 @@ use std::{collections::HashMap, hash::Hash, ops::Deref};
 ///     (3, third_node_ref)
 /// ]);
 ///
+/// // ...
+///
 /// let (flip, clear) = prepare_flip(
 ///     ids_to_nodes,
 ///     reflow_target,
-///     "transform 0.6s".to_string()
+///     "transform 0.6s"
 /// ).map_err(|e| format!("Prepare flip failed with error: {e}"))?;
 ///
 /// // Perform actions that will change the node refs' elements' positions
@@ -50,10 +52,11 @@ use std::{collections::HashMap, hash::Hash, ops::Deref};
 ///
 /// // ...
 ///
-/// set_timeout(|| match clear() {
-///     Ok(()) => (),
-///     Err(e) => console_log(&format!("An error occurred when attempting to clear the elements' styles: {e}"))
-/// }, Duration::from_millis(600));
+/// set_timeout(|| {
+///     if let Err(e) = clear() {
+///         println!("An error occurred when attempting to clear the elements' styles: {e}");
+///     }
+/// })
 ///
 /// Ok(())
 ///
@@ -162,7 +165,7 @@ where
             Self::CouldNotGetHtmlElement(ts) => {
                 write!(
                     f,
-                    "Could not get element(s) from node reference(s) associated with {}",
+                    "Could not get element(s) from node reference(s) associated with [{}]",
                     ts.iter()
                         .map(|t| t.to_string())
                         .collect::<Vec<_>>()
@@ -190,7 +193,7 @@ where
             Self::CouldNotGetHtmlElement(ts) => {
                 write!(
                     f,
-                    "Could not get element(s) for node reference(s) associated with {}",
+                    "Could not get element(s) for node reference(s) associated with [{}]",
                     ts.iter()
                         .map(|t| t.to_string())
                         .collect::<Vec<_>>()

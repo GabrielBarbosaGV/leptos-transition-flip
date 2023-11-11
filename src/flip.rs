@@ -153,7 +153,7 @@ where
             Self::CouldNotGetHtmlElement(ts) => {
                 write!(
                     f,
-                    "Could not get element(s) from node references(s) associated with {}",
+                    "Could not get element(s) from node references(s) associated with [{}]",
                     ts.iter()
                         .map(|t| t.to_string())
                         .collect::<Vec<_>>()
@@ -169,8 +169,8 @@ where
                     "An error occurred when trying to compute the differences in \
                     position between the original elements and the old elements. \
                     The elements present in the first hash map but not the second \
-                    are {}, while the elements present in the second hash map but \
-                    not the first are {}",
+                    are [{}], while the elements present in the second hash map but \
+                    not the first are [{}]",
                     present_in_original_but_not_new
                         .iter()
                         .map(|t| t.to_string())
