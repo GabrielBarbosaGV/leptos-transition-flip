@@ -25,11 +25,11 @@ use std::{collections::HashMap, hash::Hash, ops::Deref};
 /// ```ignore
 /// // ...
 ///
-/// let reflow_target = create_node_ref(cx);
+/// let reflow_target = create_node_ref();
 ///
-/// let first_node_ref = create_node_ref(cx);
-/// let second_node_ref = create_node_ref(cx);
-/// let third_node_ref = create_node_ref(cx);
+/// let first_node_ref = create_node_ref();
+/// let second_node_ref = create_node_ref();
+/// let third_node_ref = create_node_ref();
 ///
 /// let ids_to_nodes = HashMap::from([
 ///     (1, first_node_ref),
@@ -130,7 +130,7 @@ where
 ///         set_timeout(|| {
 ///             match clear() {
 ///                 Ok(()) => (),
-///                 Err(e) => println!(&format!("An error occurred when attempting to clear FLIP styles: {e}"))
+///                 Err(e) => println!("An error occurred when attempting to clear FLIP styles: {e}")
 ///             }
 ///         }, Duration::from_millis(600));
 ///
