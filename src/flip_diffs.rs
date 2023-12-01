@@ -41,12 +41,12 @@ where
         self,
         resolver: impl Fn(&T, &U, &V) -> Result<(), T>,
     ) -> Result<FlipTransform<T, U>, Vec<T>> {
-        let set_transform_and_transition_instructions =
+        let set_transform_instructions =
             get_set_transform_instructions(self.nodes());
 
         let mut problematic_keys = Vec::new();
 
-        set_transform_and_transition_instructions
+        set_transform_instructions
             .iter()
             .for_each(|(k, v)| {
                 let SetTransform(v) = v;
@@ -81,10 +81,10 @@ mod tests {
 
         let flip_diffs = FlipDiffs::new(cloned_nodes, diffs);
 
-        let flip_transform_and_transition = flip_diffs
+        let flip_transform = flip_diffs
             .set_transforms(|_, _, _| Ok(()))
-            .expect("Setting transforms and transitions should not fail");
+            .expect("Setting transforms should not fail");
 
-        assert_eq!(&nodes, flip_transform_and_transition.nodes());
+        assert_eq!(&nodes, flip_transform.nodes());
     }
 }
