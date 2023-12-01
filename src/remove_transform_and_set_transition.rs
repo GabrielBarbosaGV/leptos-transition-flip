@@ -15,15 +15,6 @@ where
 #[derive(Debug)]
 pub(crate) struct RemoveTransformAndSetTransition<T>(pub T);
 
-impl<T, U> RemoveTransformAndSetTransition<HashMap<T, U>>
-where
-    T: Hash + Eq + Clone + Display,
-{
-    pub fn new(nodes: HashMap<T, U>) -> Self {
-        RemoveTransformAndSetTransition(nodes)
-    }
-}
-
 impl<T> PartialEq<RemoveTransformAndSetTransition<T>> for RemoveTransformAndSetTransition<T>
 where
     T: Eq,

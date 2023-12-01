@@ -23,16 +23,10 @@ where
         &nodes
     }
 
-    pub fn take_nodes(self) -> HashMap<T, U> {
-        let FlipTransform { nodes } = self;
-
-        nodes
-    }
-
     pub fn remove_transform_and_set_transition(
         self,
         resolver: impl Fn(&T, &U) -> Result<(), T>,
-    ) -> Result<RemoveTransformAndSetTransition<HashMap<T, U>>, Vec<T>> {
+    ) -> Result<(), Vec<T>> {
         let remove_transform_and_set_transition_instructions =
             get_remove_transform_and_set_transition_instructions(self.nodes());
 
@@ -53,6 +47,6 @@ where
             return Err(problematic_keys);
         }
 
-        Ok(RemoveTransformAndSetTransition::new(self.take_nodes()))
+        Ok(())
     }
 }
