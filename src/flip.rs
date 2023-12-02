@@ -117,21 +117,25 @@ where
 /// if let Err(err) = flip() {
 ///     let err = match err {
 ///         FlipError::CouldNotGetHtmlElement(ids) => {
-///             "Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]"
+///             format!("Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]")
 ///         },
 ///         FlipError::CouldNotGetReflowTarget => {
-///             "Getting the HTML elements for the reflow target NodeRef was not possible"
+///             "\
+///                 Getting the HTML elements for the reflow target NodeRef was not possible\
+///             ".to_string()
 ///         },
 ///         FlipError::HashMapDiffError {
 ///             present_in_original_but_not_new,
 ///             present_in_new_but_not_original
-///         } => "\
+///         } => format!(
+///             "\
 ///                 Diffing the positions of the HTML elements was not possible, \
 ///                 as the [{present_in_original_but_not_new}] IDs were found in \
 ///                 the first HashMap, but not the second, and the converse was \
 ///                 the case for [{present_in_new_but_not_original}].\
-///         "
-///     }.to_string()
+///             "
+///         )
+///     }
 ///
 ///     return Err(err)
 /// }

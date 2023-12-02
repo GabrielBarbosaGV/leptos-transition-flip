@@ -56,7 +56,7 @@ use std::{collections::HashMap, hash::Hash, ops::Deref};
 ///     if let Err(e) = clear() {
 ///         println!("An error occurred when attempting to clear the elements' styles: {e}");
 ///     }
-/// })
+/// }, Duration::from_millis(600));
 ///
 /// Ok(())
 ///
@@ -138,7 +138,7 @@ where
 ///     },
 ///
 ///     Err(PrepareFlipError::CouldNotGetHtmlElement(ids)) => {
-///         Err("Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]")
+///         Err(format!("Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]"))
 ///     }
 /// }
 /// ```
@@ -181,7 +181,7 @@ where
 ///     if let Err(ClearError::CouldNotGetHtmlElement(ids)) = clear() {
 ///         println!("Getting the HTML elements corresponding to the following IDs was not possible: [{ids}]");
 ///     }
-/// })
+/// }, Duration::from_millis(600));
 /// ```
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ClearError<T> {
