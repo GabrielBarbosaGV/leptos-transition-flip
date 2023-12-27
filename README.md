@@ -2,7 +2,8 @@
 Enables translate-based FLIP animations for elements referenced by NodeRefs.
 
 ## Example
-![FLIP example](./flip_example.gif)
+![FLIP example](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExaW9ubW9sZ2N1YmR4Z215cXpiYzQwZW0xaThkajRncDEwOXlndG93YSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ezdHY32OsPzW6N4co2/giphy.gif)
+
 (Quality and framerate extremely lowered to avoid large GIF size)
 
 ## How to use
